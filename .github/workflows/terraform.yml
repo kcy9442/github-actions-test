@@ -13,6 +13,13 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    env:
+      TF_VAR_region_name: my-app-dev
+      TF_VAR_web_domain_name: shinning.cloud
+      TF_VAR_web_domain_aliases: '["www.shinning.cloud"]'
+      TF_VAR_cloudwatch_alarm_email: ${{ secrets.CLOUDWATCH_ALARM_EMAIL }}
+      TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
+      TF_VAR_admin_notification_email: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,6 +33,13 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.15.7"
+      - name: Validate required deployment configuration
+        shell: bash
+        run: |
+          if [ -z "$TF_VAR_cloudwatch_alarm_email" ]; then
+            echo "CLOUDWATCH_ALARM_EMAIL repository secret is required."
+            exit 1
+          fi
       - name: Terraform init
         working-directory: dambda
         run: terraform init -input=false
@@ -34,16 +48,8 @@ jobs:
         run: terraform validate
       - name: Terraform Plan
         working-directory: dambda
-        env:
-          TF_VAR_region_name: my-app-dev
-          TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
-          TF_VAR_admin_notification_email: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
         run: terraform plan -input=false
       - name: Terraform Apply
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         working-directory: dambda
-        env:
-          TF_VAR_region_name: my-app-dev
-          TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
-          TF_VAR_admin_notification_email: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
         run: terraform apply -input=false -auto-approve
