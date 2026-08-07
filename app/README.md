@@ -136,7 +136,7 @@ AWS_REGION=ap-northeast-2 PRODUCT_CATALOG_TABLE_NAME=my-app-dev-product-catalog 
 cd terraform && terraform output api_gateway_endpoint   # 주소 확인
 cd ../dambda
 flutter build web --release --dart-define=API_BASE_URL=<위에서 확인한 주소>
-aws s3 sync build/web s3://my-app-dev-static-site-793001767302 --delete --region ap-northeast-2
+aws s3 sync build/web s3://my-app-dev-static-site-469072180472 --delete --region ap-northeast-2
 ```
 
 **배포된 사이트 주소**는 `terraform output static_site_url`로 확인합니다(S3 웹사이트 호스팅

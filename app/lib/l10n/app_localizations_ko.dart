@@ -57,25 +57,24 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signupButton => '가입하기';
 
   @override
+  String signupSuccessMessage(String nickname) {
+    return '$nickname 님 환영합니다. 가입한 계정으로 로그인해주세요.';
+  }
+
+  @override
   String get retryButton => '다시 시도';
 
   @override
   String get productNotFound => '상품을 찾을 수 없어요.';
 
   @override
+  String get storeLabel => '파는 곳';
+
+  @override
   String get homeBannerTitle => '한국에 오셨다면, 이건 꼭 담아가세요';
 
   @override
   String get homeBannerSubtitle => '여행자들이 인정한 간식과 기념품';
-
-  @override
-  String get downloadAppTitle => '안드로이드 앱으로 더 편하게';
-
-  @override
-  String get downloadAppSubtitle => 'APK 파일을 내려받아 설치하세요';
-
-  @override
-  String get downloadAppButton => '다운로드';
 
   @override
   String get categoryAll => '전체';
@@ -162,4 +161,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get updateReview => '리뷰 수정';
+
+  @override
+  String get askAiFinderTitle => 'AI로 상품 찾기';
+
+  @override
+  String get askAiFinderHint => '원하는 상품을 자연어로 설명해 보세요';
+
+  @override
+  String get askAiTitle => 'AI에게 물어보기';
+
+  @override
+  String get askAiHint => '이 상품에 대해 궁금한 점을 물어보세요';
+
+  @override
+  String get askAiButton => '질문하기';
 }

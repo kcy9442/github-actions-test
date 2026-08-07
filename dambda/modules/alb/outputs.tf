@@ -20,3 +20,13 @@ output "listener_arn" {
   description = "ALB HTTP 리스너 ARN"
   value       = aws_lb_listener.http.arn
 }
+
+output "load_balancer_arn_suffix" {
+  description = "CloudWatch ALB 메트릭 차원용 ARN suffix"
+  value       = aws_lb.main.arn_suffix
+}
+
+output "target_group_arn_suffix" {
+  description = "CloudWatch Target Group 메트릭 차원용 ARN suffix"
+  value       = aws_lb_target_group.main.arn_suffix
+}

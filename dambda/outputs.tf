@@ -26,9 +26,8 @@ output "vpc_peering_connection_id" {
 output "dynamodb_tables" {
   description = "DynamoDB 테이블 이름 (Global Table, us-east-1로 자동 복제됨)"
   value = {
-    users        = module.dynamodb.users_table_name
-    content      = module.dynamodb.content_table_name
-    translations = module.dynamodb.translations_table_name
+    users   = module.dynamodb.users_table_name
+    content = module.dynamodb.content_table_name
   }
 }
 
@@ -39,4 +38,9 @@ output "cognito" {
     app_client_id = module.cognito.app_client_id
     issuer_url    = module.cognito.issuer_url
   }
+}
+
+output "cloudwatch_alarm_topic_arn" {
+  description = "CloudWatch 경보가 게시되는 SNS 토픽 ARN"
+  value       = aws_sns_topic.cloudwatch_alarms.arn
 }

@@ -12,7 +12,7 @@ const TOXICITY_THRESHOLD = 0.7;
 const MIN_MODERATION_CONFIDENCE = 70;
 
 async function checkText(text) {
-  if (!text || !text.trim()) return { approved: true, reasons: [] };
+  if (!text || !text.trim()) return { approved: true, reasons: [], findings: [] };
 
   const result = await comprehend.send(
     new DetectToxicContentCommand({
@@ -22,18 +22,20 @@ async function checkText(text) {
   );
 
   const reasons = [];
+  const findings = [];
   for (const segment of result.ResultList || []) {
     for (const label of segment.Labels || []) {
+      findings.push({ source: 'COMPREHEND', name: label.Name, confidence: label.Score });
       if (label.Score >= TOXICITY_THRESHOLD) {
         reasons.push(`text:${label.Name}`);
       }
     }
   }
-  return { approved: reasons.length === 0, reasons };
+  return { approved: reasons.length === 0, reasons, findings };
 }
 
 async function checkImage(imageBucket, imageKey) {
-  if (!imageBucket || !imageKey) return { approved: true, reasons: [] };
+  if (!imageBucket || !imageKey) return { approved: true, reasons: [], findings: [] };
 
   const result = await rekognition.send(
     new DetectModerationLabelsCommand({
@@ -42,8 +44,14 @@ async function checkImage(imageBucket, imageKey) {
     })
   );
 
-  const reasons = (result.ModerationLabels || []).map((label) => `image:${label.Name}`);
-  return { approved: reasons.length === 0, reasons };
+  const findings = (result.ModerationLabels || []).map((label) => ({
+    source: 'REKOGNITION',
+    name: label.Name,
+    parentName: label.ParentName || null,
+    confidence: label.Confidence,
+  }));
+  const reasons = findings.map((label) => `image:${label.name}`);
+  return { approved: reasons.length === 0, reasons, findings };
 }
 
 exports.handler = async (event) => {
@@ -58,10 +66,11 @@ exports.handler = async (event) => {
     return {
       approved: textResult.approved && imageResult.approved,
       reasons: [...textResult.reasons, ...imageResult.reasons],
+      findings: [...textResult.findings, ...imageResult.findings],
     };
   } catch (err) {
     // 검열 자체가 실패하면(쓰로틀링 등) 우회시키지 않고 막음 - fail-closed
     console.error('moderation check failed', err);
-    return { approved: false, reasons: ['moderation_service_error'] };
+    return { approved: false, reasons: ['moderation_service_error'], findings: [] };
   }
 };

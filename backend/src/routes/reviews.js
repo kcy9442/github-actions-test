@@ -4,6 +4,9 @@ const reviews = require('../services/reviews');
 const dynamodb = require('../services/dynamodb');
 const s3 = require('../services/s3');
 const lambda = require('../services/lambda');
+const reviewQueue = require('../services/reviewQueue');
+const moderationEvents = require('../services/moderationEvents');
+const { recordModeration } = require('../metrics');
 const translate = require('../services/translate');
 const authenticate = require('../middleware/authenticate');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -62,6 +65,7 @@ function handleUpload(req, res, next) {
 }
 
 router.get('/', asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   const items = await reviews.queryReviewsByProduct(req.params.productId);
   const reviewCount = items.length;
   const averageRating = reviewCount === 0
@@ -93,18 +97,7 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
 
   let photo;
   if (req.file) {
-    photo = await s3.uploadReviewPhoto(req.file.buffer, req.file.mimetype);
-  }
-
-  const moderation = await lambda.invokeModeration({
-    text,
-    imageBucket: photo?.bucket,
-    imageKey: photo?.key,
-  });
-
-  if (!moderation.approved) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
-    return res.status(422).json({ error: 'content_rejected', reasons: moderation.reasons });
+    photo = await s3.uploadQuarantinePhoto(req.file.buffer, req.file.mimetype);
   }
 
   const review = {
@@ -112,8 +105,11 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
     productId,
     rating,
     text,
-    photoUrl: photo?.url ?? null,
+    photoUrl: null,
     photoKey: photo?.key ?? null,
+    imageMimeType: photo?.mimeType ?? null,
+    moderationStatus: 'PENDING',
+    isVisible: false,
     authorNickname,
     createdAt: new Date().toISOString(),
   };
@@ -121,11 +117,20 @@ router.post('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
   try {
     await reviews.putReview(review);
   } catch (err) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
+    if (photo) await s3.deleteQuarantinePhoto(photo.key).catch(() => {});
     if (err.name === 'ConditionalCheckFailedException') {
       return res.status(409).json({ error: 'already reviewed this product' });
     }
     return res.status(500).json({ error: 'failed to save review' });
+  }
+
+  try {
+    await reviewQueue.enqueueReview(review);
+  } catch (err) {
+    console.error('review moderation queue failed', err);
+    await reviews.deleteReview(review.userId, review.productId).catch(() => {});
+    if (photo) await s3.deleteQuarantinePhoto(photo.key).catch(() => {});
+    return res.status(503).json({ error: 'moderation_queue_unavailable' });
   }
 
   res.status(201).json(review);
@@ -148,7 +153,7 @@ router.put('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
 
   let photo;
   if (req.file) {
-    photo = await s3.uploadReviewPhoto(req.file.buffer, req.file.mimetype);
+    photo = await s3.uploadQuarantinePhoto(req.file.buffer, req.file.mimetype);
   }
   // 새 사진을 올렸거나 명시적으로 제거를 요청한 경우에만 기존 사진을 나중에 지움 -
   // 둘 다 아니면(그냥 별점/텍스트만 수정) 기존 사진은 그대로 둠
@@ -161,11 +166,25 @@ router.put('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
     imageBucket: photo?.bucket,
     imageKey: photo?.key,
   });
+  recordModeration(moderation);
 
   if (!moderation.approved) {
-    if (photo) await s3.deleteReviewPhoto(photo.key).catch(() => {});
+    await moderationEvents.createEvent({
+      userId: req.user.sub,
+      productId,
+      authorNickname: existing.authorNickname,
+      rating,
+      text,
+      reasons: moderation.reasons,
+      findings: moderation.findings || [],
+      quarantineKey: photo?.key || null,
+      imageMimeType: photo?.mimeType || null,
+      requestType: 'UPDATE',
+    });
     return res.status(422).json({ error: 'content_rejected', reasons: moderation.reasons });
   }
+
+  if (photo) photo = await s3.promoteQuarantinePhoto(photo);
 
   const updated = {
     ...existing,
@@ -175,6 +194,10 @@ router.put('/', authenticate, handleUpload, asyncHandler(async (req, res) => {
     photoKey: photo ? photo.key : removePhoto ? null : existing.photoKey,
     updatedAt: new Date().toISOString(),
   };
+
+  // 원문이 바뀌면 이전 원문 기준의 언어 감지/번역 캐시는 더 이상 유효하지 않다.
+  delete updated.sourceLang;
+  delete updated.translations;
 
   try {
     await reviews.updateReview(updated);

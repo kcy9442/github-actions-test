@@ -8,3 +8,8 @@ output "api_endpoint" {
   description = "HTTP API 호출 엔드포인트"
   value       = aws_apigatewayv2_stage.default.invoke_url
 }
+
+output "api_id" {
+  description = "CloudWatch HTTP API 메트릭 차원용 API ID"
+  value       = aws_apigatewayv2_api.http_api_gateway.id
+}

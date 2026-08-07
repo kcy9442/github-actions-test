@@ -9,11 +9,11 @@ locals {
 
 # 1. GitHub OIDC Provider 등록
 resource "aws_iam_openid_connect_provider" "github_actions" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
   thumbprint_list = [
-  "6938fd4d98bab03faadb97b34396831e3780aea1",
-  "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
   ]
 }
 
@@ -32,8 +32,8 @@ resource "aws_iam_role" "github_actions_role" {
       Condition = {
         StringLike = {
             "token.actions.githubusercontent.com:sub" = [
-            "repo:ahowme12@80324068/github-actions-test@1308447274:ref:refs/heads/main",
-            "repo:ahowme12@80324068/github-actions-test@1308447274:pull_request"
+            "repo:kcy9442/github-actions-test:ref:refs/heads/main",
+            "repo:kcy9442/github-actions-test:pull_request"
           ]
         }
       }
@@ -124,6 +124,15 @@ resource "aws_iam_policy" "core" {
           StringEquals = {
             "iam:AWSServiceName" = "replication.dynamodb.amazonaws.com"
           }
+        }
+      },
+      {
+        Sid      = "IamServiceLinkedRoleForEcrReplication"
+        Effect   = "Allow"
+        Action   = ["iam:CreateServiceLinkedRole"]
+        Resource = ["arn:aws:iam::${local.account_id}:role/aws-service-role/replication.ecr.amazonaws.com/AWSServiceRoleForECRReplication"]
+        Condition = {
+          StringEquals = { "iam:AWSServiceName" = "replication.ecr.amazonaws.com" }
         }
       }
     ]
@@ -432,6 +441,51 @@ resource "aws_iam_policy" "compute" {
             "aws:RequestedRegion" = ["ap-northeast-2"]
           }
         }
+      },
+      {
+        Sid      = "EcrReplicationConfig"
+        Effect   = "Allow"
+        Action   = ["ecr:PutReplicationConfiguration", "ecr:DescribeRegistry"]
+        Resource = "*"
+      },
+      {
+        Sid    = "SsmTavilyApiKey"
+        Effect = "Allow"
+        Action = [
+          "ssm:PutParameter", "ssm:DeleteParameter", "ssm:GetParameter", "ssm:GetParameters",
+          "ssm:AddTagsToResource", "ssm:RemoveTagsFromResource", "ssm:ListTagsForResource"
+        ]
+        Resource = ["arn:aws:ssm:*:${local.account_id}:parameter/${local.app_name_prefix}/*"]
+      },
+      {
+        Sid      = "SsmDescribeParameters"
+        Effect   = "Allow"
+        Action   = ["ssm:DescribeParameters"]
+        Resource = "*"
+      },
+      {
+        Sid      = "SqsManagement"
+        Effect   = "Allow"
+        Action   = ["sqs:CreateQueue", "sqs:DeleteQueue", "sqs:GetQueueAttributes", "sqs:SetQueueAttributes", "sqs:ListQueueTags", "sqs:TagQueue", "sqs:UntagQueue"]
+        Resource = ["arn:aws:sqs:*:${local.account_id}:${local.app_name_prefix}-*"]
+      },
+      {
+        Sid      = "SnsManagement"
+        Effect   = "Allow"
+        Action   = ["sns:GetTopicAttributes", "sns:GetTopic", "sns:ListTagsForResource", "sns:CreateTopic", "sns:DeleteTopic", "sns:SetTopicAttributes", "sns:Subscribe", "sns:Unsubscribe", "sns:Publish", "sns:TagResource", "sns:UntagResource"]
+        Resource = ["arn:aws:sns:*:${local.account_id}:${local.app_name_prefix}-*"]
+      },
+      {
+        Sid      = "EventBridgePipesManagement"
+        Effect   = "Allow"
+        Action   = ["pipes:CreatePipe", "pipes:UpdatePipe", "pipes:DeletePipe", "pipes:DescribePipe", "pipes:ListPipes", "pipes:StartPipe", "pipes:StopPipe", "pipes:TagResource", "pipes:UntagResource", "pipes:ListTagsForResource"]
+        Resource = ["arn:aws:pipes:*:${local.account_id}:pipe/${local.app_name_prefix}-*"]
+      },
+      {
+        Sid      = "StepFunctionsManagement"
+        Effect   = "Allow"
+        Action   = ["states:ListStateMachineVersions", "states:CreateStateMachine", "states:DeleteStateMachine", "states:UpdateStateMachine", "states:DescribeStateMachine", "states:ListStateMachines", "states:ValidateStateMachineDefinition", "states:TagResource", "states:UntagResource", "states:ListTagsForResource"]
+        Resource = ["arn:aws:states:*:${local.account_id}:stateMachine:${local.app_name_prefix}-*", "arn:aws:states:*:${local.account_id}:stateMachine:*"]
       }
     ]
   })

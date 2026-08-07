@@ -19,16 +19,17 @@
   "countryRequiredError": "Please select a country.",
   "signupFailedDefault": "Signup failed.",
   "signupButton": "Sign Up",
+  "signupSuccessMessage": "Welcome, {nickname}. Please log in with your new account.",
+  "@signupSuccessMessage": {
+    "placeholders": { "nickname": { "type": "String" } }
+  },
 
   "retryButton": "Retry",
   "productNotFound": "Product not found.",
+  "storeLabel": "Where to buy",
 
   "homeBannerTitle": "If you're visiting Korea, don't miss these",
   "homeBannerSubtitle": "Traveler-approved snacks & souvenirs",
-
-  "downloadAppTitle": "Get the Android app",
-  "downloadAppSubtitle": "Download the APK and install it",
-  "downloadAppButton": "Download",
 
   "categoryAll": "All",
   "categorySnack": "Snacks",
@@ -60,5 +61,10 @@
   "reviewHint": "How was this product?",
   "attachPhoto": "Attach Photo (optional)",
   "submitReview": "Submit Review",
-  "updateReview": "Update Review"
+  "updateReview": "Update Review",
+  "askAiFinderTitle": "Find products with AI",
+  "askAiFinderHint": "Describe the product you are looking for"
+  ,"askAiTitle": "Ask AI",
+  "askAiHint": "Ask anything about this product",
+  "askAiButton": "Ask"
 }

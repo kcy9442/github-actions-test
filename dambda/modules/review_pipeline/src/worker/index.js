@@ -1,0 +1,111 @@
+const { TranslateClient, TranslateTextCommand } = require('@aws-sdk/client-translate');
+const { ComprehendClient, DetectToxicContentCommand } = require('@aws-sdk/client-comprehend');
+const { RekognitionClient, DetectModerationLabelsCommand } = require('@aws-sdk/client-rekognition');
+const { S3Client, CopyObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { DynamoDBClient, UpdateItemCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+const crypto = require('crypto');
+
+const translate = new TranslateClient({});
+const comprehend = new ComprehendClient({ region: 'us-east-1' });
+const rekognition = new RekognitionClient({});
+const s3 = new S3Client({});
+const dynamodb = new DynamoDBClient({});
+
+function message(input) {
+  const record = Array.isArray(input) ? input[0] : input;
+  return typeof record.body === 'string' ? JSON.parse(record.body) : record;
+}
+
+async function textResult(text) {
+  const translated = await translate.send(new TranslateTextCommand({
+    Text: text,
+    SourceLanguageCode: 'auto',
+    TargetLanguageCode: 'en',
+  }));
+  const result = await comprehend.send(new DetectToxicContentCommand({
+    LanguageCode: 'en',
+    TextSegments: [{ Text: translated.TranslatedText }],
+  }));
+  const labels = (result.ResultList || []).flatMap((segment) => segment.Labels || []);
+  const threshold = Number(process.env.TOXICITY_THRESHOLD);
+  return { translatedText: translated.TranslatedText, sourceLanguage: translated.SourceLanguageCode, labels, blocked: labels.some((label) => label.Score >= threshold) };
+}
+
+async function imageResult(photoKey) {
+  if (!photoKey) return { labels: [], blocked: false };
+  const result = await rekognition.send(new DetectModerationLabelsCommand({
+    Image: { S3Object: { Bucket: process.env.QUARANTINE_BUCKET, Name: photoKey } },
+    MinConfidence: Number(process.env.IMAGE_CONFIDENCE_THRESHOLD),
+  }));
+  return { labels: result.ModerationLabels || [], blocked: (result.ModerationLabels || []).length > 0 };
+}
+
+function av(value) { return { S: value }; }
+
+function finding(type, label, confidence) {
+  return { M: { type: av(type), label: av(label), confidence: { N: String(confidence) } } };
+}
+
+exports.handler = async (input) => {
+  const review = message(input);
+  if (!review.userId || !review.productId || !review.text) throw new Error('Invalid review moderation message');
+
+  const [text, image] = await Promise.all([textResult(review.text), imageResult(review.photoKey)]);
+  const detectedAt = new Date().toISOString();
+  const blocked = text.blocked || image.blocked;
+
+  if (!blocked && review.photoKey) {
+    await s3.send(new CopyObjectCommand({
+      Bucket: process.env.PUBLIC_REVIEW_BUCKET,
+      Key: review.photoKey,
+      CopySource: `${process.env.QUARANTINE_BUCKET}/${encodeURIComponent(review.photoKey)}`,
+    }));
+    await s3.send(new DeleteObjectCommand({ Bucket: process.env.QUARANTINE_BUCKET, Key: review.photoKey }));
+  }
+
+  if (blocked) {
+    const eventId = crypto.randomUUID();
+    const expiresAt = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+    await dynamodb.send(new PutItemCommand({
+      TableName: process.env.MODERATION_EVENTS_TABLE,
+      Item: {
+        eventId: av(eventId),
+        userId: av(review.userId),
+        productId: av(review.productId),
+        authorNickname: av(review.authorNickname || ''),
+        rating: { N: String(review.rating || 0) },
+        text: av(review.text),
+        status: av('BLOCKED'),
+        createdAt: av(detectedAt),
+        requestType: av(review.requestType || 'CREATE'),
+        reasons: { L: [
+          ...text.labels.filter((label) => label.Score >= Number(process.env.TOXICITY_THRESHOLD)).map((label) => av(`text:${label.Name}`)),
+          ...image.labels.map((label) => av(`image:${label.Name}`)),
+        ] },
+        findings: { L: [
+          ...text.labels.map((label) => finding('TEXT', label.Name, label.Score)),
+          ...image.labels.map((label) => finding('IMAGE', label.Name, label.Confidence)),
+        ] },
+        quarantineKey: av(review.photoKey || ''),
+        imageMimeType: av(review.imageMimeType || ''),
+        expiresAt: { N: String(expiresAt) },
+      },
+    }));
+  }
+
+  const status = blocked ? 'REVIEW_REQUIRED' : 'APPROVED';
+  const values = { ':status': av(status), ':visible': { BOOL: !blocked }, ':at': av(detectedAt) };
+  let expression = 'SET moderationStatus = :status, isVisible = :visible, moderationUpdatedAt = :at';
+  if (!blocked && review.photoKey) {
+    values[':photoUrl'] = av(`https://${process.env.PUBLIC_REVIEW_BUCKET_DOMAIN}/${review.photoKey}`);
+    expression += ', photoUrl = :photoUrl';
+  }
+  await dynamodb.send(new UpdateItemCommand({
+    TableName: process.env.REVIEW_TABLE_NAME,
+    Key: { userId: av(review.userId), productId: av(review.productId) },
+    UpdateExpression: expression,
+    ExpressionAttributeValues: values,
+  }));
+
+  return { reviewId: `${review.userId}#${review.productId}`, status, detectedAt };
+};

@@ -198,6 +198,12 @@ abstract class AppLocalizations {
   /// **'가입하기'**
   String get signupButton;
 
+  /// No description provided for @signupSuccessMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'{nickname} 님 환영합니다. 가입한 계정으로 로그인해주세요.'**
+  String signupSuccessMessage(String nickname);
+
   /// No description provided for @retryButton.
   ///
   /// In ko, this message translates to:
@@ -210,6 +216,12 @@ abstract class AppLocalizations {
   /// **'상품을 찾을 수 없어요.'**
   String get productNotFound;
 
+  /// No description provided for @storeLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'파는 곳'**
+  String get storeLabel;
+
   /// No description provided for @homeBannerTitle.
   ///
   /// In ko, this message translates to:
@@ -221,24 +233,6 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'여행자들이 인정한 간식과 기념품'**
   String get homeBannerSubtitle;
-
-  /// No description provided for @downloadAppTitle.
-  ///
-  /// In ko, this message translates to:
-  /// **'안드로이드 앱으로 더 편하게'**
-  String get downloadAppTitle;
-
-  /// No description provided for @downloadAppSubtitle.
-  ///
-  /// In ko, this message translates to:
-  /// **'APK 파일을 내려받아 설치하세요'**
-  String get downloadAppSubtitle;
-
-  /// No description provided for @downloadAppButton.
-  ///
-  /// In ko, this message translates to:
-  /// **'다운로드'**
-  String get downloadAppButton;
 
   /// No description provided for @categoryAll.
   ///
@@ -407,6 +401,36 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'리뷰 수정'**
   String get updateReview;
+
+  /// No description provided for @askAiFinderTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI로 상품 찾기'**
+  String get askAiFinderTitle;
+
+  /// No description provided for @askAiFinderHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'원하는 상품을 자연어로 설명해 보세요'**
+  String get askAiFinderHint;
+
+  /// No description provided for @askAiTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'AI에게 물어보기'**
+  String get askAiTitle;
+
+  /// No description provided for @askAiHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 상품에 대해 궁금한 점을 물어보세요'**
+  String get askAiHint;
+
+  /// No description provided for @askAiButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'질문하기'**
+  String get askAiButton;
 }
 
 class _AppLocalizationsDelegate

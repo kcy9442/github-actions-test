@@ -51,6 +51,7 @@ resource "aws_cloudfront_distribution" "static_site" {
   enabled             = true
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
+  aliases             = var.cloudfront_aliases
 
   origin {
     domain_name              = aws_s3_bucket.static_site.bucket_regional_domain_name
@@ -63,7 +64,7 @@ resource "aws_cloudfront_distribution" "static_site" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
-    compress                = true
+    compress               = true
     # AWS 관리형 "CachingOptimized" 정책 - 별도 캐시 정책을 직접 정의할 필요 없음
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
   }
@@ -88,7 +89,10 @@ resource "aws_cloudfront_distribution" "static_site" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = var.cloudfront_acm_certificate_arn == ""
+    acm_certificate_arn            = var.cloudfront_acm_certificate_arn != "" ? var.cloudfront_acm_certificate_arn : null
+    ssl_support_method             = var.cloudfront_acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.cloudfront_acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
   }
 
   tags = { Name = "${var.region_name}-static-site" }
@@ -208,5 +212,38 @@ resource "aws_s3_bucket_cors_configuration" "review_photos" {
     allowed_origins = ["*"]
     allowed_headers = ["*"]
     max_age_seconds = 3000
+  }
+}
+
+# 검열 통과 전 리뷰 이미지를 보관하는 비공개 격리 버킷. 차단 이미지는 관리자만
+# 조회할 수 있고 30일 뒤 자동 삭제된다.
+resource "aws_s3_bucket" "moderation_quarantine" {
+  count  = var.enable_review_photos_bucket ? 1 : 0
+  bucket = "${var.region_name}-moderation-quarantine-${data.aws_caller_identity.current.account_id}"
+
+  tags = { Name = "${var.region_name}-moderation-quarantine" }
+}
+
+resource "aws_s3_bucket_public_access_block" "moderation_quarantine" {
+  count  = var.enable_review_photos_bucket ? 1 : 0
+  bucket = aws_s3_bucket.moderation_quarantine[0].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "moderation_quarantine" {
+  count  = var.enable_review_photos_bucket ? 1 : 0
+  bucket = aws_s3_bucket.moderation_quarantine[0].id
+
+  rule {
+    id     = "expire-moderation-evidence"
+    status = "Enabled"
+
+    filter {}
+
+    expiration { days = 30 }
   }
 }

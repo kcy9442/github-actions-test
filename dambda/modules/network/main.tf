@@ -75,15 +75,17 @@ resource "aws_route_table" "private" {
   count  = length(var.private_subnets)
   vpc_id = aws_vpc.main.id
 
-  dynamic "route" {
-    for_each = local.nat_gateway_count > 0 ? [1] : []
-    content {
-      cidr_block     = "0.0.0.0/0"
-      nat_gateway_id = aws_nat_gateway.nat[min(count.index, local.nat_gateway_count - 1)].id
-    }
-  }
-
   tags = { Name = "${var.region_name}-private-rt-${count.index + 1}" }
+}
+
+# 인라인 route와 별도 aws_route를 함께 사용하면 피어링 경로가 매 apply마다
+# 제거/재생성된다. NAT와 피어링 모두 독립 aws_route로 관리한다.
+resource "aws_route" "private_nat" {
+  count = local.nat_gateway_count > 0 ? length(var.private_subnets) : 0
+
+  route_table_id         = aws_route_table.private[count.index].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat[min(count.index, local.nat_gateway_count - 1)].id
 }
 
 # 프라이빗 서브넷과 라우팅 테이블 연결

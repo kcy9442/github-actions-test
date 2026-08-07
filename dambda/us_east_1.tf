@@ -78,8 +78,8 @@ module "compute_us" {
   # DynamoDB 모듈에서 출력된 us-east-1 replica 테이블 ARN 연결
   dynamodb_table_arns = module.dynamodb.replica_table_arns
 
-  # 번역 Lambda는 아직 서울에만 있음 - DR 전환 시 크로스 리전으로 호출 (지연 있음, 추후 리전별 배치 검토)
-  lambda_invoke_arns = [module.translation.function_arn]
+  # pilot-light placeholder는 Lambda를 호출하지 않음
+  lambda_invoke_arns = []
 
   # backend 상품/리뷰 기능은 서울 단일 리전으로 유지 - placeholder 컨테이너 그대로
   enable_backend_app = false

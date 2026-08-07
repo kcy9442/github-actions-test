@@ -21,3 +21,8 @@ output "task_definition_arn" {
   description = "최신 배포된 작업 정의 ARN"
   value       = aws_ecs_task_definition.main.arn
 }
+
+output "log_group_name" {
+  description = "ECS 애플리케이션 CloudWatch 로그 그룹 이름"
+  value       = aws_cloudwatch_log_group.ecs_logs.name
+}

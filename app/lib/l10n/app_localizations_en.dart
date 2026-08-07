@@ -58,25 +58,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signupButton => 'Sign Up';
 
   @override
+  String signupSuccessMessage(String nickname) {
+    return 'Welcome, $nickname. Please log in with your new account.';
+  }
+
+  @override
   String get retryButton => 'Retry';
 
   @override
   String get productNotFound => 'Product not found.';
 
   @override
+  String get storeLabel => 'Where to buy';
+
+  @override
   String get homeBannerTitle => 'If you\'re visiting Korea, don\'t miss these';
 
   @override
   String get homeBannerSubtitle => 'Traveler-approved snacks & souvenirs';
-
-  @override
-  String get downloadAppTitle => 'Get the Android app';
-
-  @override
-  String get downloadAppSubtitle => 'Download the APK and install it';
-
-  @override
-  String get downloadAppButton => 'Download';
 
   @override
   String get categoryAll => 'All';
@@ -165,4 +164,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateReview => 'Update Review';
+
+  @override
+  String get askAiFinderTitle => 'Find products with AI';
+
+  @override
+  String get askAiFinderHint => 'Describe the product you are looking for';
+
+  @override
+  String get askAiTitle => 'Ask AI';
+
+  @override
+  String get askAiHint => 'Ask anything about this product';
+
+  @override
+  String get askAiButton => 'Ask';
 }

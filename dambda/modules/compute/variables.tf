@@ -58,7 +58,7 @@ variable "dynamodb_table_arns" {
 }
 
 variable "lambda_invoke_arns" {
-  description = "ECS 태스크가 호출할 수 있는 Lambda ARN 목록 (예: 번역 Lambda)"
+  description = "ECS 태스크가 호출할 수 있는 Lambda ARN 목록"
   type        = list(string)
 }
 
@@ -131,6 +131,57 @@ variable "review_photos_bucket_domain" {
 }
 
 variable "review_moderation_lambda_name" {
+  type    = string
+  default = ""
+}
+
+variable "moderation_events_table_name" {
+  type    = string
+  default = ""
+}
+
+variable "moderation_quarantine_bucket_name" {
+  type    = string
+  default = ""
+}
+
+variable "moderation_quarantine_bucket_arn" {
+  type    = string
+  default = ""
+}
+
+variable "review_moderation_queue_arn" {
+  type    = string
+  default = ""
+}
+
+variable "review_moderation_queue_url" {
+  type    = string
+  default = ""
+}
+
+variable "bedrock_model_id" {
+  type    = string
+  default = ""
+}
+
+variable "tavily_api_key" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "enable_prometheus" {
+  type    = bool
+  default = false
+}
+
+variable "prometheus_workspace_arn" {
+  type    = string
+  default = ""
+}
+
+variable "prometheus_remote_write_url" {
   type    = string
   default = ""
 }

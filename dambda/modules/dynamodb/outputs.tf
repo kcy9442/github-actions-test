@@ -19,10 +19,6 @@ output "content_table_stream_arn" {
   value       = aws_dynamodb_table.content.stream_arn
 }
 
-output "translations_table_name" {
-  value = aws_dynamodb_table.translations.name
-}
-
 # ===================== backend/ (상품/리뷰) 용 테이블 출력 =====================
 
 output "user_profiles_table_name" {
@@ -58,13 +54,24 @@ output "product_catalog_table_arn" {
   value = aws_dynamodb_table.product_catalog.arn
 }
 
+output "product_catalog_table_stream_arn" {
+  value = aws_dynamodb_table.product_catalog.stream_arn
+}
+
+output "moderation_events_table_name" {
+  value = aws_dynamodb_table.moderation_events.name
+}
+
+output "moderation_events_table_arn" {
+  value = aws_dynamodb_table.moderation_events.arn
+}
+
 output "table_arns" {
   description = "서울(홈 리전) ECS 태스크 IAM 정책에서 참조할 테이블/GSI ARN 목록"
   value = [
     aws_dynamodb_table.users.arn,
     aws_dynamodb_table.content.arn,
     "${aws_dynamodb_table.content.arn}/index/*",
-    aws_dynamodb_table.translations.arn,
   ]
 }
 
@@ -76,6 +83,5 @@ output "replica_table_arns" {
     "arn:${data.aws_partition.current.partition}:dynamodb:${var.replica_region}:${data.aws_caller_identity.current.account_id}:table/${aws_dynamodb_table.users.name}",
     "arn:${data.aws_partition.current.partition}:dynamodb:${var.replica_region}:${data.aws_caller_identity.current.account_id}:table/${aws_dynamodb_table.content.name}",
     "arn:${data.aws_partition.current.partition}:dynamodb:${var.replica_region}:${data.aws_caller_identity.current.account_id}:table/${aws_dynamodb_table.content.name}/index/*",
-    "arn:${data.aws_partition.current.partition}:dynamodb:${var.replica_region}:${data.aws_caller_identity.current.account_id}:table/${aws_dynamodb_table.translations.name}",
   ]
 }

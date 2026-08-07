@@ -7,6 +7,11 @@ resource "aws_cloudwatch_log_group" "ecs_logs" {
 # ECS 서비스를 담을 클러스터
 resource "aws_ecs_cluster" "main" {
   name = "${var.region_name}-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 # 컨테이너 접근 제어 보안 그룹 (ALB 트래픽 허용)
@@ -47,6 +52,27 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_ssm_parameter" "tavily_api_key" {
+  count = var.tavily_api_key != "" ? 1 : 0
+  name  = "/${var.region_name}/tavily-api-key"
+  type  = "SecureString"
+  value = var.tavily_api_key
+}
+
+resource "aws_iam_role_policy" "ecs_execution_ssm" {
+  count = var.tavily_api_key != "" ? 1 : 0
+  name  = "${var.region_name}-ecs-execution-ssm"
+  role  = aws_iam_role.ecs_task_execution_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action   = ["ssm:GetParameters"]
+      Effect   = "Allow"
+      Resource = [aws_ssm_parameter.tavily_api_key[0].arn]
+    }]
+  })
+}
+
 # 앱 태스크 역할 (Lambda 호출 및 추후 AMP 권한 확보)
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.region_name}-ecs-task-role"
@@ -81,6 +107,30 @@ locals {
     }
   ] : []
 
+  moderation_quarantine_statements = var.moderation_quarantine_bucket_arn != "" ? [
+    {
+      Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+      Effect   = "Allow"
+      Resource = "${var.moderation_quarantine_bucket_arn}/*"
+    }
+  ] : []
+
+  review_queue_statements = var.review_moderation_queue_arn != "" ? [
+    {
+      Action   = ["sqs:SendMessage"]
+      Effect   = "Allow"
+      Resource = var.review_moderation_queue_arn
+    }
+  ] : []
+
+  prometheus_statements = var.enable_prometheus ? [
+    {
+      Action   = ["aps:RemoteWrite"]
+      Effect   = "Allow"
+      Resource = var.prometheus_workspace_arn
+    }
+  ] : []
+
   # backend/src/services/cognito.js가 회원가입/로그인/내정보 조회에 Admin* API를 태스크
   # IAM 자격증명으로 직접 호출함 (API Gateway JWT authorizer가 아니라 백엔드 자체 인증).
   # GetUser는 호출자의 액세스 토큰 기준으로 동작해 리소스 단위 스코프를 지원 안 함 -> "*"
@@ -91,6 +141,7 @@ locals {
         "cognito-idp:AdminSetUserPassword",
         "cognito-idp:AdminDeleteUser",
         "cognito-idp:AdminInitiateAuth",
+        "cognito-idp:AdminListGroupsForUser",
       ]
       Effect   = "Allow"
       Resource = var.user_pool_arn
@@ -99,6 +150,14 @@ locals {
       Action   = ["cognito-idp:GetUser"]
       Effect   = "Allow"
       Resource = "*"
+    }
+  ] : []
+
+  lambda_invoke_statements = length(var.lambda_invoke_arns) > 0 ? [
+    {
+      Action   = ["lambda:InvokeFunction"]
+      Effect   = "Allow"
+      Resource = var.lambda_invoke_arns
     }
   ] : []
 }
@@ -111,20 +170,15 @@ resource "aws_iam_policy" "ecs_task_policy" {
     Statement = concat(
       [
         {
-          Action   = ["lambda:InvokeFunction"]
-          Effect   = "Allow"
-          Resource = var.lambda_invoke_arns
-        },
-        {
-          Action   = ["aps:RemoteWrite"]
-          Effect   = "Allow"
-          Resource = "*"
-        },
-        {
           # backend/src/services/translate.js. Translate/Comprehend는 리소스 단위 스코프
           # 미지원이라 "*" 정상 형태. SourceLanguageCode:'auto' 쓰면 내부적으로
           # Comprehend 언어감지도 호출되므로 그 권한도 같이 필요함
           Action   = ["translate:TranslateText", "comprehend:DetectDominantLanguage"]
+          Effect   = "Allow"
+          Resource = "*"
+        },
+        {
+          Action   = ["bedrock:InvokeModel"]
           Effect   = "Allow"
           Resource = "*"
         },
@@ -135,13 +189,18 @@ resource "aws_iam_policy" "ecs_task_policy" {
             "dynamodb:UpdateItem",
             "dynamodb:DeleteItem",
             "dynamodb:Query",
+            "dynamodb:Scan",
           ]
           Effect   = "Allow"
           Resource = var.dynamodb_table_arns
         }
       ],
+      local.lambda_invoke_statements,
       local.product_catalog_statements,
       local.review_photos_statements,
+      local.moderation_quarantine_statements,
+      local.review_queue_statements,
+      local.prometheus_statements,
       local.cognito_statements,
     )
   })
@@ -214,13 +273,67 @@ locals {
         { name = "S3_REVIEW_PHOTOS_BUCKET", value = var.review_photos_bucket_name },
         { name = "S3_REVIEW_PHOTOS_DOMAIN", value = var.review_photos_bucket_domain },
         { name = "MODERATION_LAMBDA_NAME", value = var.review_moderation_lambda_name },
+        { name = "MODERATION_EVENTS_TABLE_NAME", value = var.moderation_events_table_name },
+        { name = "S3_MODERATION_QUARANTINE_BUCKET", value = var.moderation_quarantine_bucket_name },
+        { name = "REVIEW_MODERATION_QUEUE_URL", value = var.review_moderation_queue_url },
+        { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
+        { name = "METRICS_PORT", value = "9090" },
       ]
+      secrets = var.tavily_api_key != "" ? [
+        { name = "TAVILY_API_KEY", valueFrom = aws_ssm_parameter.tavily_api_key[0].arn }
+      ] : []
       } : {
       image       = "node:20-alpine"
       command     = ["node", "-e", "require('http').createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html'});res.end('<h1>Hello from Node.js on Fargate</h1><p>path: '+req.url+'</p>')}).listen(${var.container_port})"]
       environment = []
+      secrets     = []
     }
   )
+
+  adot_config = <<-YAML
+    extensions:
+      sigv4auth:
+        region: ${var.aws_region}
+        service: aps
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: dambda-backend
+              scrape_interval: 30s
+              static_configs:
+                - targets: ["127.0.0.1:9090"]
+    exporters:
+      prometheusremotewrite:
+        endpoint: ${var.prometheus_remote_write_url}
+        auth:
+          authenticator: sigv4auth
+    service:
+      extensions: [sigv4auth]
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          exporters: [prometheusremotewrite]
+  YAML
+
+  adot_container_definition = {
+    name              = "adot-collector"
+    image             = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
+    essential         = false
+    memoryReservation = 128
+    environment = [{
+      name  = "AOT_CONFIG_CONTENT"
+      value = local.adot_config
+    }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "adot"
+      }
+    }
+  }
 }
 
 resource "aws_ecs_task_definition" "main" {
@@ -232,7 +345,19 @@ resource "aws_ecs_task_definition" "main" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
-  container_definitions = jsonencode([local.container_definition])
+  container_definitions = jsonencode(concat(
+    [local.container_definition],
+    var.enable_prometheus ? [local.adot_container_definition] : [],
+  ))
+
+  lifecycle {
+    precondition {
+      condition = !var.enable_prometheus || (
+        var.prometheus_workspace_arn != "" && var.prometheus_remote_write_url != ""
+      )
+      error_message = "enable_prometheus=true이면 AMP Workspace ARN과 Remote Write URL이 필요합니다."
+    }
+  }
 }
 
 # ECS 서비스

@@ -58,7 +58,9 @@ module "storage" {
   source    = "./modules/storage"
   providers = { aws = aws.seoul }
 
-  region_name = var.region_name
+  region_name                    = var.region_name
+  cloudfront_aliases             = local.web_domain_names
+  cloudfront_acm_certificate_arn = var.web_domain_name != "" ? aws_acm_certificate_validation.web[0].certificate_arn : ""
 }
 
 # 5. DynamoDB 모듈 호출 (Global Table, 서울이 홈 리전 / us-east-1로 실시간 복제)
@@ -82,15 +84,7 @@ module "cognito" {
   dynamodb_users_table_arn  = module.dynamodb.users_table_arn
 }
 
-# 5-2. 번역 Lambda (VPC 밖, ECS가 lambda:InvokeFunction으로 동기 호출)
-module "translation" {
-  source    = "./modules/translation"
-  providers = { aws = aws.seoul }
-
-  region_name = var.region_name
-}
-
-# 5-3. 검열 Lambda (VPC 밖, S3 업로드 이벤트 + Content 테이블 Streams로 트리거)
+# 5-2. 검열 Lambda (VPC 밖, S3 업로드 이벤트 + Content 테이블 Streams로 트리거)
 module "moderation" {
   source    = "./modules/moderation"
   providers = { aws = aws.seoul }
@@ -105,13 +99,38 @@ module "moderation" {
   content_table_stream_arn = module.dynamodb.content_table_stream_arn
 }
 
-# 5-4. 리뷰 사진/텍스트 동기 검열 Lambda (VPC 밖, backend가 리뷰 저장 전에 직접 invoke)
+# 5-3. 리뷰 사진/텍스트 동기 검열 Lambda (VPC 밖, backend가 리뷰 저장 전에 직접 invoke)
 module "review_moderation" {
   source    = "./modules/review_moderation"
   providers = { aws = aws.seoul }
 
   region_name              = var.region_name
-  review_photos_bucket_arn = module.storage.review_photos_bucket_arn
+  review_photos_bucket_arn = module.storage.moderation_quarantine_bucket_arn
+}
+
+module "review_pipeline" {
+  source    = "./modules/review_pipeline"
+  providers = { aws = aws.seoul }
+
+  region_name                  = var.region_name
+  review_table_name            = module.dynamodb.product_reviews_table_name
+  review_table_arn             = module.dynamodb.product_reviews_table_arn
+  moderation_events_table_name = module.dynamodb.moderation_events_table_name
+  moderation_events_table_arn  = module.dynamodb.moderation_events_table_arn
+  quarantine_bucket_name       = module.storage.moderation_quarantine_bucket_name
+  quarantine_bucket_arn        = module.storage.moderation_quarantine_bucket_arn
+  public_review_bucket_name    = module.storage.review_photos_bucket_name
+  public_review_bucket_arn     = module.storage.review_photos_bucket_arn
+  public_review_bucket_domain  = module.storage.review_photos_bucket_regional_domain
+}
+
+module "admin_notifications" {
+  source    = "./modules/admin_notifications"
+  providers = { aws = aws.seoul }
+
+  region_name              = var.region_name
+  product_table_stream_arn = module.dynamodb.product_catalog_table_stream_arn
+  admin_email              = var.admin_notification_email
 }
 
 # 6. 컴퓨트 모듈 호출
@@ -137,25 +156,38 @@ module "compute" {
       module.dynamodb.product_likes_table_arn,
       module.dynamodb.product_reviews_table_arn,
       "${module.dynamodb.product_reviews_table_arn}/index/*",
+      module.dynamodb.moderation_events_table_arn,
+      "${module.dynamodb.moderation_events_table_arn}/index/*",
     ]
   )
 
-  # 번역 Lambda + 리뷰 검열 Lambda 호출 권한 (검열 모듈의 비동기 moderate는 ECS가 직접 호출 안 함)
-  lambda_invoke_arns = [module.translation.function_arn, module.review_moderation.function_arn]
+  # 리뷰 검열 Lambda 호출 권한 (번역은 ECS가 Amazon Translate API를 직접 호출)
+  lambda_invoke_arns = [module.review_moderation.function_arn]
 
   # backend/(Express) 앱이 쓰는 리소스 연결
-  user_pool_id                  = module.cognito.user_pool_id
-  user_pool_arn                 = module.cognito.user_pool_arn
-  user_pool_client_id           = module.cognito.app_client_id
-  dynamodb_table_name           = module.dynamodb.user_profiles_table_name
-  product_likes_table_name      = module.dynamodb.product_likes_table_name
-  product_reviews_table_name    = module.dynamodb.product_reviews_table_name
-  product_catalog_table_name    = module.dynamodb.product_catalog_table_name
-  product_catalog_table_arn     = module.dynamodb.product_catalog_table_arn
-  review_photos_bucket_name     = module.storage.review_photos_bucket_name
-  review_photos_bucket_arn      = module.storage.review_photos_bucket_arn
-  review_photos_bucket_domain   = module.storage.review_photos_bucket_regional_domain
-  review_moderation_lambda_name = module.review_moderation.function_name
+  user_pool_id                      = module.cognito.user_pool_id
+  user_pool_arn                     = module.cognito.user_pool_arn
+  user_pool_client_id               = module.cognito.app_client_id
+  dynamodb_table_name               = module.dynamodb.user_profiles_table_name
+  product_likes_table_name          = module.dynamodb.product_likes_table_name
+  product_reviews_table_name        = module.dynamodb.product_reviews_table_name
+  product_catalog_table_name        = module.dynamodb.product_catalog_table_name
+  product_catalog_table_arn         = module.dynamodb.product_catalog_table_arn
+  review_photos_bucket_name         = module.storage.review_photos_bucket_name
+  review_photos_bucket_arn          = module.storage.review_photos_bucket_arn
+  review_photos_bucket_domain       = module.storage.review_photos_bucket_regional_domain
+  review_moderation_lambda_name     = module.review_moderation.function_name
+  moderation_events_table_name      = module.dynamodb.moderation_events_table_name
+  moderation_quarantine_bucket_name = module.storage.moderation_quarantine_bucket_name
+  moderation_quarantine_bucket_arn  = module.storage.moderation_quarantine_bucket_arn
+  review_moderation_queue_arn       = module.review_pipeline.queue_arn
+  review_moderation_queue_url       = module.review_pipeline.queue_url
+  bedrock_model_id                  = var.bedrock_model_id
+  tavily_api_key                    = var.tavily_api_key
+
+  enable_prometheus           = var.enable_prometheus
+  prometheus_workspace_arn    = var.prometheus_workspace_arn
+  prometheus_remote_write_url = var.prometheus_remote_write_url
 
   # 기타 변수
   region_name    = var.region_name

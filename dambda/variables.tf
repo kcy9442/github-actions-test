@@ -74,3 +74,58 @@ variable "us_private_subnets" {
   type        = list(string)
   default     = ["10.1.10.0/24", "10.1.11.0/24"]
 }
+
+variable "enable_prometheus" {
+  description = "수동 생성한 AMP로 애플리케이션 메트릭을 전송할지 여부"
+  type        = bool
+  default     = false
+}
+
+variable "prometheus_workspace_arn" {
+  description = "수동 생성한 Amazon Managed Prometheus Workspace ARN"
+  type        = string
+  default     = ""
+}
+
+variable "prometheus_remote_write_url" {
+  description = "수동 생성한 AMP Workspace의 Remote Write URL"
+  type        = string
+  default     = ""
+}
+
+variable "cloudwatch_alarm_email" {
+  description = "CloudWatch 경보 SNS 이메일 구독 주소. 빈 문자열이면 토픽만 생성"
+  type        = string
+  default     = ""
+}
+
+variable "admin_notification_email" {
+  description = "상품 변경 SNS 알림을 받을 관리자 이메일. 빈 값이면 이메일 구독을 만들지 않음"
+  type        = string
+  default     = ""
+}
+
+variable "bedrock_model_id" {
+  description = "상품 Q&A에 사용할 Bedrock 모델 또는 추론 프로파일 ID"
+  type        = string
+  default     = "apac.amazon.nova-micro-v1:0"
+}
+
+variable "tavily_api_key" {
+  description = "Bedrock 도구 호출용 Tavily API 키. 빈 값이면 웹 검색 비활성화"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "web_domain_name" {
+  description = "웹 서비스 기본 도메인. 변경 시 Route 53 호스팅 영역도 함께 준비해야 함"
+  type        = string
+  default     = ""
+}
+
+variable "web_domain_aliases" {
+  description = "CloudFront에 함께 연결할 추가 도메인 목록"
+  type        = list(string)
+  default     = []
+}

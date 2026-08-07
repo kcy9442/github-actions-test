@@ -69,39 +69,6 @@ resource "aws_dynamodb_table" "content" {
   tags = { Name = "${var.region_name}-content" }
 }
 
-# 번역 캐시 (SK = "{content의 updated_at}#{locale}" 로 원본 수정 시 자동 캐시 무효화)
-resource "aws_dynamodb_table" "translations" {
-  name         = "${var.region_name}-translations"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "content_id"
-  range_key    = "version_locale"
-
-  attribute {
-    name = "content_id"
-    type = "S"
-  }
-
-  attribute {
-    name = "version_locale"
-    type = "S"
-  }
-
-  # 옛 버전 캐시 항목은 조회되지 않을 뿐 자동 삭제되진 않으므로 TTL로 정리
-  ttl {
-    attribute_name = "expires_at"
-    enabled        = true
-  }
-
-  stream_enabled   = true
-  stream_view_type = "NEW_AND_OLD_IMAGES"
-
-  replica {
-    region_name = var.replica_region
-  }
-
-  tags = { Name = "${var.region_name}-translations" }
-}
-
 # ===================== 상품/리뷰 백엔드(backend/)용 테이블 =====================
 # users(pk=user_id)를 재사용하지 않는 이유: backend 코드가 pk로 "userId"(카멜케이스)를
 # 하드코딩하고 있어 키 속성명이 달라 스키마 자체가 안 맞음. 별도 테이블로 분리.
@@ -217,4 +184,48 @@ resource "aws_dynamodb_table" "product_catalog" {
   }
 
   tags = { Name = "${var.region_name}-product-catalog" }
+}
+
+# Comprehend/Rekognition에서 차단된 리뷰의 감사·관리자 검토 기록.
+resource "aws_dynamodb_table" "moderation_events" {
+  name         = "${var.region_name}-moderation-events"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "eventId"
+
+  attribute {
+    name = "eventId"
+    type = "S"
+  }
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "moderation-events-by-user"
+    projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "userId"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "createdAt"
+      key_type       = "RANGE"
+    }
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  tags = { Name = "${var.region_name}-moderation-events" }
 }

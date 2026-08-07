@@ -8,7 +8,7 @@ output "bucket_name" {
 output "site_url" {
   description = "정적 사이트 접속 URL"
   value = var.enable_cloudfront ? (
-    "https://${aws_cloudfront_distribution.static_site[0].domain_name}"
+    "https://${length(var.cloudfront_aliases) > 0 ? var.cloudfront_aliases[0] : aws_cloudfront_distribution.static_site[0].domain_name}"
     ) : (
     "http://${aws_s3_bucket_website_configuration.static_site[0].website_endpoint}"
   )
@@ -34,4 +34,22 @@ output "review_photos_bucket_arn" {
 output "review_photos_bucket_regional_domain" {
   description = "리뷰 사진 공개 URL 조립에 쓰는 리전별 도메인 (backend의 S3_REVIEW_PHOTOS_DOMAIN)"
   value       = try(aws_s3_bucket.review_photos[0].bucket_regional_domain_name, "")
+}
+
+output "cloudfront_domain_name" {
+  description = "Route 53 Alias 대상 CloudFront 도메인"
+  value       = try(aws_cloudfront_distribution.static_site[0].domain_name, "")
+}
+
+output "cloudfront_hosted_zone_id" {
+  description = "Route 53 Alias 대상 CloudFront 호스팅 영역 ID"
+  value       = try(aws_cloudfront_distribution.static_site[0].hosted_zone_id, "")
+}
+
+output "moderation_quarantine_bucket_name" {
+  value = try(aws_s3_bucket.moderation_quarantine[0].id, "")
+}
+
+output "moderation_quarantine_bucket_arn" {
+  value = try(aws_s3_bucket.moderation_quarantine[0].arn, "")
 }

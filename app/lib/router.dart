@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/category_screen.dart';
+import 'screens/chat_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/likes_screen.dart';
 import 'screens/login_screen.dart';
@@ -9,6 +10,9 @@ import 'screens/main_shell.dart';
 import 'screens/my_screen.dart';
 import 'screens/product_detail_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/account_recovery_screen.dart';
+import 'screens/oauth_callback_screen.dart';
+import 'screens/admin_screen.dart';
 import 'state/auth_state.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -29,18 +33,33 @@ List<RouteBase> _productDetailRoutes() => [
   GoRoute(
     path: 'product/:id',
     parentNavigatorKey: rootNavigatorKey,
-    builder: (context, state) => ProductDetailScreen(productId: state.pathParameters['id']!),
+    builder: (context, state) =>
+        ProductDetailScreen(productId: state.pathParameters['id']!),
   ),
 ];
 
 // 홈/카테고리/좋아요 3개 탭에서 공통으로 쓰는 상품 상세 진입 헬퍼.
 // parentPath는 해당 탭의 최상위 경로('/', '/category', '/likes')
-void openProductDetail(BuildContext context, String parentPath, String productId) {
+void openProductDetail(
+  BuildContext context,
+  String parentPath,
+  String productId,
+) {
   if (kIsWeb) {
-    final path = parentPath == '/' ? '/product/$productId' : '$parentPath/product/$productId';
+    final path = parentPath == '/'
+        ? '/product/$productId'
+        : '$parentPath/product/$productId';
     context.go(path);
   } else {
     context.push('product/$productId');
+  }
+}
+
+void openChat(BuildContext context) {
+  if (kIsWeb) {
+    context.go('/chat');
+  } else {
+    context.push('chat');
   }
 }
 
@@ -49,15 +68,31 @@ final GoRouter router = GoRouter(
   refreshListenable: authState,
   redirect: (context, state) {
     final loggedIn = authState.isLoggedIn;
-    final onAuthPage =
-        state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+    final onAuthPage = {
+      '/login',
+      '/signup',
+      '/account-recovery',
+      '/auth/callback',
+    }.contains(state.matchedLocation);
     if (!loggedIn && !onAuthPage) return '/login';
     if (loggedIn && onAuthPage) return '/';
+    if (loggedIn && state.matchedLocation == '/admin' && !authState.isAdmin) {
+      return '/';
+    }
     return null;
   },
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
+    GoRoute(
+      path: '/account-recovery',
+      builder: (context, state) => const AccountRecoveryScreen(),
+    ),
+    GoRoute(
+      path: '/auth/callback',
+      builder: (context, state) => const OAuthCallbackScreen(),
+    ),
+    GoRoute(path: '/admin', builder: (context, state) => const AdminScreen()),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>
           MainShell(navigationShell: navigationShell),
@@ -67,7 +102,14 @@ final GoRouter router = GoRouter(
             GoRoute(
               path: '/',
               builder: (context, state) => const HomeScreen(),
-              routes: _productDetailRoutes(),
+              routes: [
+                ..._productDetailRoutes(),
+                GoRoute(
+                  path: 'chat',
+                  parentNavigatorKey: rootNavigatorKey,
+                  builder: (context, state) => const ChatScreen(),
+                ),
+              ],
             ),
           ],
         ),
@@ -90,7 +132,9 @@ final GoRouter router = GoRouter(
           ],
         ),
         StatefulShellBranch(
-          routes: [GoRoute(path: '/my', builder: (context, state) => const MyScreen())],
+          routes: [
+            GoRoute(path: '/my', builder: (context, state) => const MyScreen()),
+          ],
         ),
       ],
     ),

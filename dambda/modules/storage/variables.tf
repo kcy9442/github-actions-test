@@ -14,3 +14,15 @@ variable "enable_cloudfront" {
   type        = bool
   default     = true
 }
+
+variable "cloudfront_aliases" {
+  description = "CloudFront 사용자 도메인 목록"
+  type        = list(string)
+  default     = []
+}
+
+variable "cloudfront_acm_certificate_arn" {
+  description = "CloudFront용 us-east-1 ACM 인증서 ARN"
+  type        = string
+  default     = ""
+}
