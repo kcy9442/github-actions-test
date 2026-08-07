@@ -64,8 +64,8 @@ resource "aws_iam_policy" "core" {
           "dynamodb:DeleteItem"
         ]
         Resource = [
-          "arn:aws:s3:::dambda-bootstrap-bucket",
-          "arn:aws:s3:::dambda-bootstrap-bucket/*",
+          aws_s3_bucket.terraform_state.arn,
+          "${aws_s3_bucket.terraform_state.arn}/*",
           "arn:aws:dynamodb:ap-northeast-2:${local.account_id}:table/terraform-lock-table"
         ]
       },
