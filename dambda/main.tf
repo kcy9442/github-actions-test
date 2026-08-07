@@ -82,6 +82,11 @@ module "cognito" {
 
   dynamodb_users_table_name = module.dynamodb.users_table_name
   dynamodb_users_table_arn  = module.dynamodb.users_table_arn
+
+  google_oauth_client_id     = var.google_oauth_client_id
+  google_oauth_client_secret = var.google_oauth_client_secret
+  callback_urls              = ["https://shinning.cloud/auth/callback"]
+  logout_urls                = ["https://shinning.cloud/login"]
 }
 
 # 5-2. 검열 Lambda (VPC 밖, S3 업로드 이벤트 + Content 테이블 Streams로 트리거)

@@ -56,6 +56,9 @@ function toBedrockMessages(history, userText) {
 // system 프롬프트 + 대화 히스토리로 시작해서, 모델이 도구 호출을 요청하면 실행하고
 // 결과를 대화에 이어붙여 다시 물어보는 걸 반복함 (Bedrock Converse API의 표준 tool-use 루프)
 async function converse(systemText, userText, history) {
+  if (!config.bedrockModelId) {
+    throw new Error('BEDROCK_MODEL_ID is not configured');
+  }
   const messages = toBedrockMessages(history, userText);
 
   for (let round = 0; round < 3; round += 1) {

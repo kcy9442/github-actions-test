@@ -199,6 +199,7 @@ resource "aws_iam_policy" "data" {
           "dynamodb:DeleteItem",
           "dynamodb:BatchWriteItem",
           "dynamodb:BatchGetItem",
+          "translate:TranslateText",
           "dynamodb:CreateTable",
           "dynamodb:DeleteTable",
           "dynamodb:UpdateTable",
@@ -436,6 +437,8 @@ resource "aws_iam_policy" "compute" {
           "cognito-idp:List*",
           "cognito-idp:CreateUserPool", "cognito-idp:DeleteUserPool", "cognito-idp:UpdateUserPool",
           "cognito-idp:CreateUserPoolClient", "cognito-idp:DeleteUserPoolClient", "cognito-idp:UpdateUserPoolClient",
+          "cognito-idp:CreateUserPoolDomain", "cognito-idp:DeleteUserPoolDomain", "cognito-idp:UpdateUserPoolDomain",
+          "cognito-idp:CreateIdentityProvider", "cognito-idp:DeleteIdentityProvider", "cognito-idp:UpdateIdentityProvider",
           "cognito-idp:CreateGroup", "cognito-idp:DeleteGroup", "cognito-idp:UpdateGroup",
           "cognito-idp:TagResource"
         ]

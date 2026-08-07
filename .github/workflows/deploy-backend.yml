@@ -68,3 +68,10 @@ jobs:
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_SERVICE"
+
+      - name: Seed product catalog
+        env:
+          PRODUCT_CATALOG_TABLE_NAME: my-app-dev-product-catalog
+        run: |
+          npm ci --prefix backend
+          node backend/scripts/seed-products.js

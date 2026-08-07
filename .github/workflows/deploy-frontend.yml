@@ -48,6 +48,16 @@ jobs:
             --output text)
           echo "base_url=$ENDPOINT" >> "$GITHUB_OUTPUT"
 
+      - name: Look up Cognito configuration
+        id: cognito
+        run: |
+          USER_POOL_ID=$(aws cognito-idp list-user-pools --max-results 60 \
+            --query "UserPools[?Name=='my-app-dev-user-pool'].Id | [0]" --output text)
+          CLIENT_ID=$(aws cognito-idp list-user-pool-clients --user-pool-id "$USER_POOL_ID" \
+            --query "UserPoolClients[?ClientName=='my-app-dev-app-client'].ClientId | [0]" --output text)
+          echo "client_id=$CLIENT_ID" >> "$GITHUB_OUTPUT"
+          echo "domain=https://shinning-cloud-469072180472.auth.ap-northeast-2.amazoncognito.com" >> "$GITHUB_OUTPUT"
+
       # 안드로이드 APK 빌드(Gradle)에 JDK 필요 - 웹 빌드만 하던 때는 없어도 됐음
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -66,7 +76,12 @@ jobs:
 
       - name: Build web
         working-directory: app
-        run: flutter build web --release --dart-define=API_BASE_URL=${{ steps.api.outputs.base_url }}
+        run: >-
+          flutter build web --release
+          --dart-define=API_BASE_URL=${{ steps.api.outputs.base_url }}
+          --dart-define=COGNITO_DOMAIN=${{ steps.cognito.outputs.domain }}
+          --dart-define=COGNITO_CLIENT_ID=${{ steps.cognito.outputs.client_id }}
+          --dart-define=COGNITO_REDIRECT_URI=https://shinning.cloud/auth/callback
 
       # 릴리즈 빌드가 디버그 서명 그대로라(android/app/build.gradle.kts 참고) 별도
       # 키스토어 없이 바로 빌드됨 - 사이드로드 테스트용이지 스토어 배포용 아님

@@ -27,7 +27,20 @@ app.use('/notifications', notificationsRoutes);
 // 라우트에서 처리 안 한 예외의 최종 방어선 (asyncHandler가 여기로 넘겨줌) -
 // 이게 없으면 하나의 요청에서 난 에러가 서버 프로세스 전체를 죽임
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error('request failed', {
+    method: req.method,
+    path: req.originalUrl,
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+  });
+
+  if (err.name === 'AccessDeniedException') {
+    return res.status(503).json({ error: 'Bedrock model access denied' });
+  }
+  if (err.name === 'ValidationException' || err.name === 'ResourceNotFoundException') {
+    return res.status(503).json({ error: 'Bedrock model is not available in this region' });
+  }
   res.status(500).json({ error: 'internal server error' });
 });
 

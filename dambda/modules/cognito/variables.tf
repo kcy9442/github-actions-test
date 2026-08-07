@@ -17,3 +17,26 @@ variable "dynamodb_users_table_arn" {
   description = "Post Confirmation Lambda가 PutItem 할 Users 테이블 ARN"
   type        = string
 }
+
+variable "google_oauth_client_id" {
+  type     = string
+  default  = ""
+  nullable = false
+}
+
+variable "google_oauth_client_secret" {
+  type      = string
+  default   = ""
+  nullable  = false
+  sensitive = true
+}
+
+variable "callback_urls" {
+  type    = list(string)
+  default = []
+}
+
+variable "logout_urls" {
+  type    = list(string)
+  default = []
+}

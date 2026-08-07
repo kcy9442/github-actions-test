@@ -20,6 +20,8 @@ jobs:
       TF_VAR_cloudwatch_alarm_email: ${{ secrets.CLOUDWATCH_ALARM_EMAIL }}
       TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
       TF_VAR_admin_notification_email: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
+      TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +40,11 @@ jobs:
         run: |
           if [ -z "$TF_VAR_cloudwatch_alarm_email" ]; then
             echo "CLOUDWATCH_ALARM_EMAIL repository secret is required."
+            exit 1
+          fi
+          if { [ -n "$TF_VAR_google_oauth_client_id" ] && [ -z "$TF_VAR_google_oauth_client_secret" ]; } || \
+             { [ -z "$TF_VAR_google_oauth_client_id" ] && [ -n "$TF_VAR_google_oauth_client_secret" ]; }; then
+            echo "GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be configured together."
             exit 1
           fi
       - name: Terraform init

@@ -6,10 +6,12 @@ import 'api_exception.dart';
 import 'http_timeout.dart';
 import 'social_auth_platform.dart';
 
-const _domain =
-    'https://dambda-dev-469072180472.auth.ap-northeast-2.amazoncognito.com';
-const _clientId = '1481vud7gf6ost17i9s9kib98n';
-const _redirectUri = 'https://shinning.cloud/auth/callback';
+const _domain = String.fromEnvironment('COGNITO_DOMAIN');
+const _clientId = String.fromEnvironment('COGNITO_CLIENT_ID');
+const _redirectUri = String.fromEnvironment(
+  'COGNITO_REDIRECT_URI',
+  defaultValue: 'https://shinning.cloud/auth/callback',
+);
 const _verifierKey = 'dambda_oauth_verifier';
 const _stateKey = 'dambda_oauth_state';
 
@@ -21,6 +23,9 @@ class SocialAuthService {
   }
 
   void startGoogleLogin() {
+    if (_domain.isEmpty || _clientId.isEmpty) {
+      throw const ApiException(500, 'Google 로그인 설정이 배포되지 않았습니다.');
+    }
     final verifier = _randomUrlSafe(64);
     final state = _randomUrlSafe(32);
     final challenge = base64UrlEncode(

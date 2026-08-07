@@ -108,11 +108,24 @@ variable "admin_notification_email" {
 variable "bedrock_model_id" {
   description = "상품 Q&A에 사용할 Bedrock 모델 또는 추론 프로파일 ID"
   type        = string
-  default     = "apac.amazon.nova-micro-v1:0"
+  default     = "apac.amazon.nova-lite-v1:0"
 }
 
 variable "tavily_api_key" {
   description = "Bedrock 도구 호출용 Tavily API 키. 빈 값이면 웹 검색 비활성화"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "google_oauth_client_id" {
+  description = "Google OAuth 2.0 web client ID used by Cognito"
+  type        = string
+  default     = ""
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth 2.0 web client secret used by Cognito"
   type        = string
   default     = ""
   sensitive   = true
