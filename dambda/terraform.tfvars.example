@@ -11,7 +11,7 @@ container_port  = 80
 cloudwatch_alarm_email = "wisdompjt@gmail.com"
 
 # Bedrock 상품 추천/질의 모델. Tavily 키는 tfvars에 저장하지 말고 GitHub Secret으로 주입
-bedrock_model_id         = "jp.amazon.nova-2-lite-v1:0"
+bedrock_model_id         = "apac.amazon.nova-pro-v1:0"
 tavily_api_key           = ""
 admin_notification_email = ""
 
