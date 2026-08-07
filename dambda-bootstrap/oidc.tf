@@ -530,7 +530,9 @@ resource "aws_iam_policy" "monitoring" {
         "route53:ListHostedZonesByName",
         "route53:ListResourceRecordSets",
         "route53:ChangeResourceRecordSets",
-        "route53:GetChange"
+        "route53:GetChange",
+        "route53:ListTagsForResource",
+        "route53:ChangeTagsForResource"
       ]
       Resource = "*"
     }]
