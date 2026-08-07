@@ -522,7 +522,15 @@ resource "aws_iam_policy" "monitoring" {
         "acm:GetCertificate",
         "acm:ListTagsForCertificate",
         "acm:AddTagsToCertificate",
-        "acm:RemoveTagsFromCertificate"
+        "acm:RemoveTagsFromCertificate",
+        "acm:RequestCertificate",
+        "acm:DeleteCertificate",
+        "route53:GetHostedZone",
+        "route53:ListHostedZones",
+        "route53:ListHostedZonesByName",
+        "route53:ListResourceRecordSets",
+        "route53:ChangeResourceRecordSets",
+        "route53:GetChange"
       ]
       Resource = "*"
     }]
