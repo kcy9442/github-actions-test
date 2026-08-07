@@ -40,6 +40,30 @@ function stripThinking(text) {
   return text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
 }
 
+function isDailyQuotaError(err) {
+  return err && err.name === 'ThrottlingException' &&
+    /too many tokens per day/i.test(err.message || '');
+}
+
+function fallbackProducts(catalog, query) {
+  const normalized = String(query || '').toLowerCase();
+  let category;
+  if (/화장|피부|스킨|로션|serum|cosmetic/.test(normalized)) category = 'cosmetic';
+  if (/간식|과자|먹|라면|snack|food/.test(normalized)) category = 'snack';
+  if (/생활|주방|여행|living/.test(normalized)) category = 'living';
+
+  const candidates = category
+    ? catalog.filter((product) => product.category === category)
+    : catalog;
+  const selected = candidates.slice(0, 5);
+  return {
+    answer: selected.length > 0
+      ? '현재 Bedrock 일일 사용량이 소진되어 상품 목록을 기준으로 임시 추천했습니다. 잠시 후 다시 질문하면 AI 추천으로 자동 전환됩니다.'
+      : '현재 Bedrock 일일 사용량이 소진되었고 추천할 상품 데이터가 없습니다.',
+    productIds: selected.map((product) => product.itemId),
+  };
+}
+
 // history: 이전 대화 턴 [{role: 'user'|'assistant', text}, ...] - 클라이언트(ChatState)가
 // 들고 있다가 매 요청마다 통째로 다시 보내줌(서버는 세션을 저장 안 하는 무상태 구조).
 // role이 아닌 값은 걸러내고, 너무 길어지는 걸 막기 위해 최근 10턴(20개)만 사용
@@ -126,7 +150,12 @@ web_search 도구로 실제로 검색해서 답하고, 검색해도 못 찾으�
 상품 정보:
 ${productContext}`;
 
-  return converse(systemText, question);
+  try {
+    return await converse(systemText, question);
+  } catch (err) {
+    if (!isDailyQuotaError(err)) throw err;
+    return `현재 Bedrock 일일 사용량이 소진되어 상품 정보로 안내합니다. ${product.name}은(는) ${product.reason || '등록된 설명을 참고해 선택할 수 있는 상품입니다.'}`;
+  }
 }
 
 // 홈 화면 채팅형 "AI로 찾기" - 카탈로그 전체를 컨텍스트로 주고 사용자 요청에 맞는 상품을 추천.
@@ -157,7 +186,13 @@ async function findProducts(catalog, query, history) {
 상품 목록:
 ${catalogContext}`;
 
-  const raw = await converse(systemText, query, history);
+  let raw;
+  try {
+    raw = await converse(systemText, query, history);
+  } catch (err) {
+    if (isDailyQuotaError(err)) return fallbackProducts(catalog, query);
+    throw err;
+  }
   try {
     const jsonText = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
     const parsed = JSON.parse(jsonText);
