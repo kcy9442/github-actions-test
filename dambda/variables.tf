@@ -108,7 +108,7 @@ variable "admin_notification_email" {
 variable "bedrock_model_id" {
   description = "상품 Q&A에 사용할 Bedrock 모델 또는 추론 프로파일 ID"
   type        = string
-  default     = "apac.amazon.nova-lite-v1:0"
+  default     = "jp.amazon.nova-2-lite-v1:0"
 }
 
 variable "tavily_api_key" {
