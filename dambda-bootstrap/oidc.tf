@@ -496,6 +496,39 @@ resource "aws_iam_policy" "compute" {
 }
 
 # 4. 정책들을 role에 부착
+resource "aws_iam_policy" "monitoring" {
+  name        = "github-actions-policy-monitoring"
+  description = "Monitoring, SNS subscription, and ACM access for dambda CI"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "MonitoringManagement"
+      Effect = "Allow"
+      Action = [
+        "logs:DescribeMetricFilters",
+        "logs:PutMetricFilter",
+        "logs:DeleteMetricFilter",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:ListTagsForResource",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "sns:GetSubscriptionAttributes",
+        "sns:SetSubscriptionAttributes",
+        "sns:ListSubscriptionsByTopic",
+        "acm:DescribeCertificate",
+        "acm:GetCertificate",
+        "acm:ListTagsForCertificate",
+        "acm:AddTagsToCertificate",
+        "acm:RemoveTagsFromCertificate"
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "core" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = aws_iam_policy.core.arn
@@ -514,4 +547,9 @@ resource "aws_iam_role_policy_attachment" "network" {
 resource "aws_iam_role_policy_attachment" "compute" {
   role       = aws_iam_role.github_actions_role.name
   policy_arn = aws_iam_policy.compute.arn
+}
+
+resource "aws_iam_role_policy_attachment" "monitoring" {
+  role       = aws_iam_role.github_actions_role.name
+  policy_arn = aws_iam_policy.monitoring.arn
 }
