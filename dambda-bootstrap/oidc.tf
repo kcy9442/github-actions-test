@@ -59,6 +59,7 @@ resource "aws_iam_policy" "core" {
           "s3:ListBucket",
           "s3:GetObject",
           "s3:PutObject",
+          "s3:DeleteObject",
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"

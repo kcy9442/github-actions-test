@@ -3,13 +3,11 @@
 #  리소스를 remote state 없이 같은 dependency 그래프 안에서 처리하기 위함)
 
 provider "aws" {
-  alias   = "seoul"
-  region  = var.aws_region
-  profile = "dambda-deploy"
+  alias  = "seoul"
+  region = var.aws_region
 }
 
 provider "aws" {
-  alias   = "us_east_1"
-  region  = var.us_aws_region
-  profile = "dambda-deploy"
+  alias  = "us_east_1"
+  region = var.us_aws_region
 }
