@@ -48,14 +48,21 @@ resource "aws_ecr_lifecycle_policy" "backend" {
   })
 }
 
-# product_catalog은 읽기 전용(쓰기는 개발자가 시딩 스크립트로 직접), review_photos는 S3라
-# 기존 dynamodb_table_arns/lambda_invoke_arns 배열과 액션 종류가 달라서 못 섞고 따로 분리.
+# product_catalog은 일반 사용자의 공개 조회와 관리자 상품 CRUD가 함께 쓰는 테이블이다.
+# 관리자 API는 백엔드 파드의 IRSA 역할로 실행되므로 Put/Update/Delete 권한도 이 정책에
+# 포함해야 한다. review_photos는 S3라 기존 배열과 액션 종류가 달라 따로 분리한다.
 # 값이 빈 문자열이면(이 기능을 안 쓰는 호출부) statement 자체를 빼야 함 - IAM 정책에
 # Resource=""를 넣으면 apply 시점에 거부당하기 때문. (modules/compute에서 그대로 이전)
 locals {
   product_catalog_statements = var.product_catalog_table_arn != "" ? [
     {
-      Action   = ["dynamodb:GetItem", "dynamodb:Scan"]
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Scan",
+      ]
       Effect   = "Allow"
       Resource = var.product_catalog_table_arn
     }
