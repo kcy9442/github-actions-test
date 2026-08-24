@@ -30,9 +30,9 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _submit() async {
     final l10n = AppLocalizations.of(context)!;
     if (_countryCode == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.countryRequiredError)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.countryRequiredError)));
       return;
     }
 
@@ -46,7 +46,9 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authState.lastError ?? l10n.signupFailedDefault)),
+        SnackBar(
+          content: Text(authState.lastError ?? l10n.signupFailedDefault),
+        ),
       );
       return;
     }
@@ -58,7 +60,16 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.signupTitle)),
+      // 로그인 화면에서 context.go('/signup')로 이동하므로 Navigator 스택에 이전 화면이
+      // 남지 않는다. 자동 AppBar 뒤로가기 대신 로그인으로 명시적으로 돌아가는 버튼을 둔다.
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: '로그인으로 돌아가기',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/login'),
+        ),
+        title: Text(l10n.signupTitle),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -83,9 +94,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
               ),
@@ -106,7 +120,10 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 items: [
                   for (final country in countries)
-                    DropdownMenuItem(value: country.code, child: Text(country.nameKo)),
+                    DropdownMenuItem(
+                      value: country.code,
+                      child: Text(country.nameKo),
+                    ),
                 ],
                 onChanged: (value) => setState(() => _countryCode = value),
               ),
