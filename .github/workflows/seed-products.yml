@@ -22,6 +22,9 @@ env:
   # Bedrock 일일 토큰 한도를 넘지 않도록 한 실행에서 10개만 번역한다.
   # 이미 번역된 상품은 seed-products.js가 건너뛰므로 재실행하면 다음 묶음으로 이어진다.
   SEED_BATCH_SIZE: "10"
+  # 현재 Bedrock TPM/RPM이 0인 계정도 카탈로그를 먼저 배포할 수 있게 AI 호출은 잠시 끈다.
+  # quota가 활성화되면 false로 바꾸고 10개 배치 번역을 재개한다.
+  SKIP_AI_ENRICHMENT: "true"
 
 jobs:
   seed:

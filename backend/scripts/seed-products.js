@@ -11,6 +11,7 @@ const embeddings = require('../src/services/embeddings');
 const TABLE_NAME = process.env.PRODUCT_CATALOG_TABLE_NAME;
 const ITEMS_JSON_PATH = path.join(__dirname, '..', '..', 'json', 'items.json');
 const BATCH_SIZE = Number.parseInt(process.env.SEED_BATCH_SIZE || '10', 10);
+const SKIP_AI_ENRICHMENT = process.env.SKIP_AI_ENRICHMENT === 'true';
 // Bedrock InvokeModel은 계정 기본 TPS가 낮아서(AWS Translate 대비 훨씬 낮음), 상품 65개를
 // CONCURRENCY=10으로 예전처럼 필드×언어별 12번씩 동시 호출했다가 ThrottlingException이 남 -
 // admin.js와 동일하게 상품 1개당 번역 1번(translateProduct, 배치)+임베딩 1번으로 줄이고,
@@ -62,28 +63,40 @@ async function main() {
   // 상품은 다시 호출하지 않는다. workflow를 여러 번 실행하면 다음 미처리 상품 묶음으로
   // 자연스럽게 이어진다.
   const pendingItems = [];
+  const existingItems = new Map();
   for (const item of items) {
     const existing = await client.send(new GetCommand({ TableName: TABLE_NAME, Key: { itemId: item.itemId } }));
+    existingItems.set(item.itemId, existing.Item);
+    if (SKIP_AI_ENRICHMENT) {
+      pendingItems.push(item);
+      continue;
+    }
     if (existing.Item?.translations && Object.keys(existing.Item.translations).length > 0) {
       console.log(`skipping already translated ${item.itemId}`);
       continue;
     }
     pendingItems.push(item);
   }
-  const batch = pendingItems.slice(0, BATCH_SIZE);
+  // AI를 쓰지 않는 긴급 시드에서는 토큰 한도와 무관하므로 전체 카탈로그를 한 번에 넣는다.
+  const batch = SKIP_AI_ENRICHMENT ? pendingItems : pendingItems.slice(0, BATCH_SIZE);
 
-  console.log(`translating ${batch.length} of ${pendingItems.length} pending products (en, ja, zh)...`);
+  console.log(
+    SKIP_AI_ENRICHMENT
+      ? `seeding ${batch.length} products without Bedrock translations or embeddings...`
+      : `translating ${batch.length} of ${pendingItems.length} pending products (en, ja, zh)...`
+  );
   await mapWithConcurrency(batch, CONCURRENCY, async (item) => {
+    const existing = existingItems.get(item.itemId);
     // 상품 1개당 필드×언어 12번 대신 배치 요청 1번(admin.js가 쓰는 것과 동일 함수)
-    const translations = await translate.translateProduct(item);
+    const translations = SKIP_AI_ENRICHMENT ? existing?.translations || {} : await translate.translateProduct(item);
     // "AI로 찾기"가 관련 상품을 찾으려면 임베딩이 필요함 - 시딩 자체가 실패하면 안 되니
     // 실패해도(예: 모델 액세스 미활성화) embedding 없이 계속 진행함
-    const embedding = await embeddings
-      .embedText(embeddings.buildProductEmbeddingText(item))
-      .catch((err) => {
-        console.error(`embedding failed for ${item.itemId}`, err);
-        return null;
-      });
+    const embedding = SKIP_AI_ENRICHMENT
+      ? existing?.embedding || null
+      : await embeddings.embedText(embeddings.buildProductEmbeddingText(item)).catch((err) => {
+          console.error(`embedding failed for ${item.itemId}`, err);
+          return null;
+        });
 
     const record = {
       itemId: item.itemId,
