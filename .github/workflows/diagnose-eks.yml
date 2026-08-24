@@ -1,0 +1,30 @@
+name: Diagnose EKS Backend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-skip-session-tagging: true
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Connect to EKS
+        run: aws eks update-kubeconfig --region ap-northeast-2 --name my-app-dev-eks-cluster
+      - name: Report backend and ArgoCD state
+        run: |
+          kubectl get pods -A -o wide
+          kubectl -n app get deployment,replicaset,service,hpa,pod -o wide
+          kubectl -n argocd get applications.argoproj.io backend -o yaml
+          kubectl -n app describe deployment backend
+          kubectl -n app get events --sort-by=.lastTimestamp
