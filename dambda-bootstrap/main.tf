@@ -10,7 +10,9 @@ provider "aws" {
 
 # Terraform state를 위한 계정 고유 S3 버킷
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "dambda-bootstrap3-bucket" # 고유한 버킷 이름
+  # dambda/backend.tf가 사용하는 기존 원격 상태 버킷이다. 이름을 바꾸면
+  # Terraform이 상태가 담긴 버킷을 교체(삭제)하려 하므로 고정한다.
+  bucket = "dambda-bootstrap-469072180472-tfstate"
 }
 
 resource "aws_s3_bucket_versioning" "terraform_state_versioning" {
