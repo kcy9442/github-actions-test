@@ -31,4 +31,4 @@ jobs:
         working-directory: dambda-bootstrap
         run: |
           terraform init -input=false
-          terraform apply -input=false -auto-approve -target=aws_iam_policy.compute
+          terraform apply -input=false -auto-approve -target=aws_iam_policy.eks
