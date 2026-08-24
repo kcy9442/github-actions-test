@@ -740,7 +740,9 @@ resource "kubernetes_manifest" "argocd_application_backend" {
     spec = {
       project = "default"
       source = {
-        repoURL        = "https://github.com/ahowme12/github-actions-test.git"
+        # 실제 GitOps 저장소. 예전 소유자(ahowme12)를 가리키면 이미지 태그를 현재
+        # 레포에 푸시해도 ArgoCD가 전혀 동기화하지 않아 ALB 대상 파드가 0개가 된다.
+        repoURL        = "https://github.com/kcy9442/github-actions-test.git"
         targetRevision = "main"
         path           = "k8s/backend"
       }
