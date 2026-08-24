@@ -346,6 +346,17 @@ resource "aws_iam_policy" "data" {
         ]
         Resource = "*"
       }
+      {
+        # 기존 상품 원본은 현재 계정의 dambda-images 버킷에 보관되어 있다.
+        # seed-products가 이를 서비스 전용 버킷으로 복사할 때 읽기만 허용한다.
+        Sid      = "ReadCatalogImageSource"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::dambda-images",
+          "arn:aws:s3:::dambda-images/*"
+        ]
+      }
     ]
   })
 }

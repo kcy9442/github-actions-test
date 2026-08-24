@@ -8,9 +8,10 @@
 // imageUrl을 새 주소로 갱신한다. 실행 후 seed-products.js를 다시 돌려야 DynamoDB에도 반영됨.
 const fs = require('fs');
 const path = require('path');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const BUCKET = process.env.PRODUCT_IMAGES_BUCKET;
+const SOURCE_BUCKET = process.env.SOURCE_IMAGES_BUCKET || 'dambda-images';
 const REGION = process.env.AWS_REGION || 'ap-northeast-2';
 const ITEMS_JSON_PATH = path.join(__dirname, '..', '..', 'json', 'items.json');
 const CONCURRENCY = 10;
@@ -52,23 +53,34 @@ async function mapWithConcurrency(items, limit, fn) {
   return results;
 }
 
-// 원본 버킷에 아예 없는 이미지(404/403)가 섞여 있어도 나머지 마이그레이션은 계속 진행 -
+async function bodyToBuffer(body) {
+  if (typeof body.transformToByteArray === 'function') {
+    return Buffer.from(await body.transformToByteArray());
+  }
+
+  const chunks = [];
+  for await (const chunk of body) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
+}
+
+// 원본 버킷에 아예 없는 이미지가 섞여 있어도 나머지 마이그레이션은 계속 진행 -
 // 실패한 항목은 imageUrl을 옛날 값 그대로 두고 마지막에 목록으로 알려줌
 async function migrateOne(item) {
   if (!item.imageUrl) return { item, failed: false };
 
   try {
     const key = new URL(item.imageUrl).pathname.replace(/^\//, '');
-    const res = await fetch(item.imageUrl);
-    if (!res.ok) throw new Error(`${res.status}`);
-    const buffer = Buffer.from(await res.arrayBuffer());
+    // 원본 dambda-images 버킷은 public website URL이 아니라서 fetch()로는 403이 난다.
+    // GitHub Actions의 OIDC AWS 자격증명으로 객체를 직접 읽어 복사한다.
+    const source = await s3.send(new GetObjectCommand({ Bucket: SOURCE_BUCKET, Key: key }));
+    const buffer = await bodyToBuffer(source.Body);
 
     await s3.send(
       new PutObjectCommand({
         Bucket: BUCKET,
         Key: key,
         Body: buffer,
-        ContentType: contentTypeFor(key),
+        ContentType: source.ContentType || contentTypeFor(key),
       })
     );
 
@@ -87,6 +99,7 @@ async function main() {
   const raw = fs.readFileSync(ITEMS_JSON_PATH, 'utf8');
   const items = parseConcatenatedArrays(raw);
 
+  console.log(`copying ${items.length} images from s3://${SOURCE_BUCKET} to s3://${BUCKET}`);
   const results = await mapWithConcurrency(items, CONCURRENCY, migrateOne);
   const migrated = results.map((r) => r.item);
   const failed = results.filter((r) => r.failed).map((r) => r.item.itemId);
