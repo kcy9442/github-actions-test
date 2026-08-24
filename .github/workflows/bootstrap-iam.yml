@@ -31,4 +31,5 @@ jobs:
         working-directory: dambda-bootstrap
         run: |
           terraform init -input=false
+          terraform import -input=false aws_iam_policy.eks "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/github-actions-policy-eks" || true
           terraform apply -input=false -auto-approve -target=aws_iam_policy.eks
