@@ -13,8 +13,7 @@ class AdminScreen extends StatefulWidget {
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends State<AdminScreen>
-    with SingleTickerProviderStateMixin {
+class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStateMixin {
   final _service = AdminService();
   final _name = TextEditingController();
   final _price = TextEditingController();
@@ -63,9 +62,7 @@ class _AdminScreenState extends State<AdminScreen>
 
   Future<void> _loadModerationEvents() async {
     try {
-      final events = await _service.listModerationEvents(
-        authState.accessToken!,
-      );
+      final events = await _service.listModerationEvents(authState.accessToken!);
       if (mounted) setState(() => _moderationEvents = events);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -82,19 +79,14 @@ class _AdminScreenState extends State<AdminScreen>
   }
 
   Future<void> _pickImage() async {
-    final image = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 90,
-    );
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
     if (image != null && mounted) setState(() => _image = image);
   }
 
   Future<void> _addProduct() async {
-    if (_image == null ||
-        [_name, _price, _store, _reason].any((c) => c.text.trim().isEmpty)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('필수 항목과 이미지를 모두 입력해주세요.')));
+    if (_image == null || [_name, _price, _store, _reason].any((c) => c.text.trim().isEmpty)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('필수 항목과 이미지를 모두 입력해주세요.')));
       return;
     }
     setState(() => _loading = true);
@@ -107,8 +99,7 @@ class _AdminScreenState extends State<AdminScreen>
           'category': _category,
           'store': _store.text.trim(),
           'reason': _reason.text.trim(),
-          if (_discount.text.trim().isNotEmpty)
-            'discountInfo': _discount.text.trim(),
+          if (_discount.text.trim().isNotEmpty) 'discountInfo': _discount.text.trim(),
         },
         imageBytes: await _image!.readAsBytes(),
         imageName: _image!.name,
@@ -120,14 +111,10 @@ class _AdminScreenState extends State<AdminScreen>
         controller.clear();
       }
       setState(() => _image = null);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('상품이 등록되었습니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('상품이 등록되었습니다.')));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -155,12 +142,7 @@ class _AdminScreenState extends State<AdminScreen>
       ),
       body: TabBarView(
         controller: _tabs,
-        children: [
-          _reviewsTab(),
-          _moderationTab(),
-          _productTab(),
-          _productsTab(),
-        ],
+        children: [_reviewsTab(), _moderationTab(), _productTab(), _productsTab()],
       ),
     );
   }
@@ -186,9 +168,7 @@ class _AdminScreenState extends State<AdminScreen>
           final review = _reviews[index];
           return ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${review['authorNickname'] ?? review['userId']} · ★${review['rating']}',
-            ),
+            title: Text('${review['authorNickname'] ?? review['userId']} · ★${review['rating']}'),
             subtitle: Text(
               '${review['text']}\n상품: ${review['productId']}'
               '${review['moderationStatus'] != null ? ' · ${review['moderationStatus']}' : ''}',
@@ -210,10 +190,7 @@ class _AdminScreenState extends State<AdminScreen>
       return RefreshIndicator(
         onRefresh: _loadModerationEvents,
         child: ListView(
-          children: const [
-            SizedBox(height: 180),
-            Center(child: Text('차단된 검열 내역이 없습니다.')),
-          ],
+          children: const [SizedBox(height: 180), Center(child: Text('차단된 검열 내역이 없습니다.'))],
         ),
       );
     }
@@ -225,15 +202,10 @@ class _AdminScreenState extends State<AdminScreen>
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final event = _moderationEvents[index];
-          final comprehendScores =
-              (event['comprehendScores'] as List? ?? const []);
-          final rekognitionLabels =
-              (event['rekognitionLabels'] as List? ?? const []);
-          final reasons = (event['blockReasons'] as List? ?? const []).join(
-            ', ',
-          );
-          final hasImage =
-              event['quarantinePhotoKey'] != null &&
+          final comprehendScores = (event['comprehendScores'] as List? ?? const []);
+          final rekognitionLabels = (event['rekognitionLabels'] as List? ?? const []);
+          final reasons = (event['blockReasons'] as List? ?? const []).join(', ');
+          final hasImage = event['quarantinePhotoKey'] != null &&
               (event['quarantinePhotoKey'] as String).isNotEmpty;
           final eventId = event['eventId'] as String;
           return Card(
@@ -274,14 +246,11 @@ class _AdminScreenState extends State<AdminScreen>
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
                         _service.moderationImageUrl(eventId),
-                        headers: {
-                          'Authorization': 'Bearer ${authState.accessToken!}',
-                        },
+                        headers: {'Authorization': 'Bearer ${authState.accessToken!}'},
                         height: 180,
                         width: double.infinity,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Text('격리 이미지를 불러오지 못했습니다.'),
+                        errorBuilder: (_, __, ___) => const Text('격리 이미지를 불러오지 못했습니다.'),
                       ),
                     ),
                   ],
@@ -315,11 +284,7 @@ class _AdminScreenState extends State<AdminScreen>
   }
 
   Future<void> _reviewModerationEvent(String eventId) async {
-    await _service.updateModerationStatus(
-      authState.accessToken!,
-      eventId,
-      'REVIEWED',
-    );
+    await _service.updateModerationStatus(authState.accessToken!, eventId, 'REVIEWED');
     await _loadModerationEvents();
   }
 
@@ -335,10 +300,7 @@ class _AdminScreenState extends State<AdminScreen>
         _field(_name, '상품명'),
         DropdownButtonFormField<String>(
           initialValue: _category,
-          decoration: const InputDecoration(
-            labelText: '카테고리',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: '카테고리', border: OutlineInputBorder()),
           items: const [
             DropdownMenuItem(value: 'SNACK', child: Text('스낵')),
             DropdownMenuItem(value: 'COSMETIC', child: Text('화장품')),
@@ -399,24 +361,8 @@ class _AdminScreenState extends State<AdminScreen>
               final product = appState.products[index];
               return ListTile(
                 leading: product.imageUrl == null
-                    ? Image.asset(
-                        'assets/images/product-fallback.png',
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.network(
-                        product.imageUrl!,
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          'assets/images/product-fallback.png',
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                    ? const Icon(Icons.inventory_2_outlined)
+                    : Image.network(product.imageUrl!, width: 56, height: 56, fit: BoxFit.cover),
                 title: Text(product.name),
                 subtitle: Text('${product.category} · ${product.priceLabel}'),
                 trailing: Row(
@@ -429,10 +375,7 @@ class _AdminScreenState extends State<AdminScreen>
                     ),
                     IconButton(
                       tooltip: '삭제',
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        color: AppColors.primary,
-                      ),
+                      icon: const Icon(Icons.delete_outline, color: AppColors.primary),
                       onPressed: () => _deleteProduct(product),
                     ),
                   ],
@@ -452,14 +395,8 @@ class _AdminScreenState extends State<AdminScreen>
         title: const Text('상품 삭제'),
         content: Text('${product.name} 상품을 삭제하시겠습니까?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제')),
         ],
       ),
     );
@@ -469,15 +406,11 @@ class _AdminScreenState extends State<AdminScreen>
       await _service.deleteProduct(authState.accessToken!, product.id);
       await appState.loadProducts();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('상품을 삭제했습니다.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('상품을 삭제했습니다.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -506,17 +439,13 @@ class _AdminScreenState extends State<AdminScreen>
                   _field(name, '상품명'),
                   DropdownButtonFormField<String>(
                     initialValue: category,
-                    decoration: const InputDecoration(
-                      labelText: '카테고리',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(labelText: '카테고리', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 'SNACK', child: Text('간식')),
                       DropdownMenuItem(value: 'COSMETIC', child: Text('화장품')),
                       DropdownMenuItem(value: 'LIVING', child: Text('생활용품')),
                     ],
-                    onChanged: (value) =>
-                        setDialogState(() => category = value!),
+                    onChanged: (value) => setDialogState(() => category = value!),
                   ),
                   const SizedBox(height: 12),
                   _field(price, '가격', keyboardType: TextInputType.number),
@@ -527,12 +456,9 @@ class _AdminScreenState extends State<AdminScreen>
                     icon: const Icon(Icons.image_outlined),
                     label: Text(replacementImage?.name ?? '이미지 교체(선택)'),
                     onPressed: () async {
-                      final picked = await ImagePicker().pickImage(
-                        source: ImageSource.gallery,
-                        imageQuality: 90,
-                      );
-                      if (picked != null)
-                        setDialogState(() => replacementImage = picked);
+                      final picked =
+                          await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
+                      if (picked != null) setDialogState(() => replacementImage = picked);
                     },
                   ),
                 ],
@@ -540,14 +466,8 @@ class _AdminScreenState extends State<AdminScreen>
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('저장'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('취소')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('저장')),
           ],
         ),
       ),
@@ -564,8 +484,7 @@ class _AdminScreenState extends State<AdminScreen>
             'category': category,
             'store': store.text.trim(),
             'reason': reason.text.trim(),
-            if (discount.text.trim().isNotEmpty)
-              'discountInfo': discount.text.trim(),
+            if (discount.text.trim().isNotEmpty) 'discountInfo': discount.text.trim(),
           },
           imageBytes: await replacementImage?.readAsBytes(),
           imageName: replacementImage?.name,
@@ -573,15 +492,11 @@ class _AdminScreenState extends State<AdminScreen>
         );
         await appState.loadProducts();
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('상품을 수정했습니다.')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('상품을 수정했습니다.')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.toString())));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
         }
       } finally {
         if (mounted) setState(() => _loading = false);
@@ -606,10 +521,7 @@ class _AdminScreenState extends State<AdminScreen>
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
+        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
       ),
     );
   }
