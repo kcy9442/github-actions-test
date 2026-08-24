@@ -102,3 +102,16 @@ jobs:
           git add k8s/backend/kustomization.yaml
           git commit -m "deploy: backend@${{ github.sha }}"
           git push
+
+      # ArgoCD가 Git 변경을 감지할 때까지 기다리는 동안 서비스가 계속 503이 되는 일을 막기 위해
+      # 동일 GitOps 매니페스트를 즉시 적용하고 Ready 상태까지 확인한다. ArgoCD도 같은
+      # k8s/backend/를 소스로 쓰므로 다음 동기화에서 충돌 없이 동일 상태를 계속 관리한다.
+      - name: Apply backend manifest and verify rollout
+        uses: azure/setup-kubectl@v4
+
+      - name: Wait for backend pods to become ready
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name my-app-dev-eks-cluster
+          kubectl apply -k k8s/backend
+          kubectl -n app rollout status deployment/backend --timeout=5m
+          kubectl -n app get pods -o wide
