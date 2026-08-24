@@ -1,0 +1,34 @@
+name: Apply Bootstrap IAM (dambda)
+
+# 앱 스택과 독립적으로 GitHub Actions 역할 권한만 갱신한다. Destroy 전 권한 보강처럼
+# 애플리케이션 리소스를 다시 만들면 안 되는 상황에서만 수동 실행한다.
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  apply-bootstrap-iam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-skip-session-tagging: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+      - name: Apply GitHub Actions IAM policy updates
+        working-directory: dambda-bootstrap
+        run: |
+          terraform init -input=false
+          terraform apply -input=false -auto-approve -target=aws_iam_policy.compute
