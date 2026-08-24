@@ -40,10 +40,13 @@ resource "aws_iam_role" "github_actions_role" {
       # apply해야 함 - 안 바꾸면 새 레포의 워크플로우가 sts:AssumeRoleWithWebIdentity에서
       # 막힘(이 sub 패턴에 안 걸려서). 코드 전체에서 계정/레포 이름이 하드코딩된 유일한 곳
       Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
         StringLike = {
           "token.actions.githubusercontent.com:sub" = [
-            "repo:ahowme12@80324068/github-actions-test@1308447274:ref:refs/heads/main",
-            "repo:ahowme12@80324068/github-actions-test@1308447274:pull_request"
+            "repo:kcy9442/github-actions-test:ref:refs/heads/main",
+            "repo:kcy9442@278611099/github-actions-test@1326298410:ref:refs/heads/main"
           ]
         }
       }
