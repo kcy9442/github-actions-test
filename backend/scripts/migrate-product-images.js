@@ -16,6 +16,12 @@ const REGION = process.env.AWS_REGION || 'ap-northeast-2';
 const ITEMS_JSON_PATH = path.join(__dirname, '..', '..', 'json', 'items.json');
 const CONCURRENCY = 10;
 
+// 카탈로그에 기록된 예전 파일명과 원본 버킷의 실제 파일명이 다른 경우만 보정한다.
+// 대상 버킷에는 카탈로그 키(왼쪽 이름)로 저장해 URL을 일관되게 유지한다.
+const SOURCE_KEY_ALIASES = {
+  'snack/honey_butter_almond_injeolmi.jpg': 'snack/butter_almond_injeolmi.jpg',
+};
+
 if (!BUCKET) {
   console.error('PRODUCT_IMAGES_BUCKET env var is required');
   process.exit(1);
@@ -70,9 +76,10 @@ async function migrateOne(item) {
 
   try {
     const key = new URL(item.imageUrl).pathname.replace(/^\//, '');
+    const sourceKey = SOURCE_KEY_ALIASES[key] || key;
     // 원본 dambda-images 버킷은 public website URL이 아니라서 fetch()로는 403이 난다.
     // GitHub Actions의 OIDC AWS 자격증명으로 객체를 직접 읽어 복사한다.
-    const source = await s3.send(new GetObjectCommand({ Bucket: SOURCE_BUCKET, Key: key }));
+    const source = await s3.send(new GetObjectCommand({ Bucket: SOURCE_BUCKET, Key: sourceKey }));
     const buffer = await bodyToBuffer(source.Body);
 
     await s3.send(
