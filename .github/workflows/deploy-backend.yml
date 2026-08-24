@@ -96,6 +96,9 @@ jobs:
       # 이 커밋이 워크플로우를 재귀적으로 재트리거하지 않음
       - name: Bump image tag for ArgoCD sync
         run: |
+          # 계정 ID가 다른 환경에도 안전하도록 저장소에 고정된 ECR 레지스트리를 쓰지 않는다.
+          # 이전 942679463970 레지스트리로 남아 있던 탓에 현재 계정의 Fargate가 403을 받았다.
+          sed -i -E "s|(newName: ).*|\1${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}|" k8s/backend/kustomization.yaml
           sed -i -E "s|(newTag: ).*|\1\"${{ github.sha }}\"|" k8s/backend/kustomization.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

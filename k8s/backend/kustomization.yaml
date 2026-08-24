@@ -11,5 +11,5 @@ resources:
 # bump함(.github/workflows/deploy-backend.yml) - ArgoCD가 이 커밋을 감지해 자동 재배포
 images:
   - name: my-app-dev-backend
-    newName: 942679463970.dkr.ecr.ap-northeast-2.amazonaws.com/my-app-dev-backend
+    newName: 469072180472.dkr.ecr.ap-northeast-2.amazonaws.com/my-app-dev-backend
     newTag: "a0bed052a755f6e92ee0b21794bee1f2b1e16878"
