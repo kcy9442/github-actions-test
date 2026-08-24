@@ -107,6 +107,8 @@ jobs:
             --dart-define=COGNITO_DOMAIN=${{ needs.lookup-api.outputs.cognito_domain }} \
             --dart-define=COGNITO_CLIENT_ID=${{ needs.lookup-api.outputs.cognito_client_id }} \
             --dart-define=COGNITO_REDIRECT_URI=https://${{ vars.ROUTE53_CLOUDFRONT }}/auth/callback
+          # 이미 방문한 브라우저에 남아 있는 구형 서비스 워커도 다음 갱신 때 스스로 해제한다.
+          cp web/flutter_service_worker.js build/web/flutter_service_worker.js
 
       - name: Upload web build artifact
         uses: actions/upload-artifact@v4
