@@ -12,4 +12,4 @@ resources:
 images:
   - name: my-app-dev-backend
     newName: 469072180472.dkr.ecr.ap-northeast-2.amazonaws.com/my-app-dev-backend
-    newTag: "a2634a73957509e4560461e4688ad452eab78094"
+    newTag: "f45c6653a82983b057a83f17216c3beaad6c9b53"
