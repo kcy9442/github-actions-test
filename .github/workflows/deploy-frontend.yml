@@ -34,7 +34,7 @@ jobs:
       cognito_client_id: ${{ steps.cognito.outputs.client_id }}
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -57,10 +57,18 @@ jobs:
         run: |
           POOL_ID=$(aws cognito-idp list-user-pools --max-results 60 \
             --query "UserPools[?Name=='my-app-dev-user-pool'].Id" --output text)
+          if [ -z "$POOL_ID" ] || [ "$POOL_ID" = "None" ]; then
+            echo "Cognito User Pool(my-app-dev-user-pool)을 찾지 못했습니다." >&2
+            exit 1
+          fi
           CLIENT_ID=$(aws cognito-idp list-user-pool-clients --user-pool-id "$POOL_ID" \
             --query "UserPoolClients[?ClientName=='my-app-dev-app-client'].ClientId" --output text)
           DOMAIN=$(aws cognito-idp describe-user-pool --user-pool-id "$POOL_ID" \
             --query "UserPool.Domain" --output text)
+          if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "None" ]; then
+            echo "Cognito Hosted UI 도메인이 없습니다. Terraform에서 repair_cognito_domain을 실행하세요." >&2
+            exit 1
+          fi
           echo "domain=https://${DOMAIN}.auth.${AWS_REGION}.amazoncognito.com" >> "$GITHUB_OUTPUT"
           echo "client_id=$CLIENT_ID" >> "$GITHUB_OUTPUT"
 
@@ -148,7 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}

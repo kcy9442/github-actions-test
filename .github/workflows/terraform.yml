@@ -14,6 +14,11 @@ on:
         required: true
         default: false
         type: boolean
+      repair_cognito_domain:
+        description: "Cognito Hosted UI 도메인을 재생성합니다. 기존 로그인 URL이 DNS 오류일 때만 켜세요."
+        required: true
+        default: false
+        type: boolean
 permissions:
   id-token: write
   contents: read
@@ -55,6 +60,32 @@ jobs:
       - name: Terraform Validate
         working-directory: dambda
         run: terraform validate
+      # Hosted UI의 도메인 문자열은 삭제된 뒤에도 User Pool에 남아 있을 수 있음. 그러면
+      # 프론트가 만든 Google 로그인 URL이 DNS에서 해석되지 않는다(ERR_NAME_NOT_RESOLVED).
+      # 이 선택 스텝은 도메인 리소스만 강제로 재생성하므로 EKS/네트워크 전체를 다시 적용하지 않는다.
+      - name: Repair Cognito Hosted UI domain
+        if: inputs.repair_cognito_domain
+        working-directory: dambda
+        env:
+          TF_VAR_region_name: my-app-dev
+          TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
+          TF_VAR_admin_notification_email: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
+          TF_VAR_enable_prometheus: ${{ secrets.ENABLE_PROMETHEUS }}
+          TF_VAR_prometheus_workspace_arn: ${{ secrets.PROMETHEUS_WORKSPACE_ARN }}
+          TF_VAR_enable_grafana: ${{ secrets.ENABLE_GRAFANA }}
+          TF_VAR_grafana_admin_sso_group_ids: ${{ secrets.GRAFANA_ADMIN_SSO_GROUP_IDS }}
+          TF_VAR_route53_cloudfront: ${{ vars.ROUTE53_CLOUDFRONT }}
+          TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+          TF_VAR_enable_slack_alerts: ${{ secrets.ENABLE_SLACK_ALERTS }}
+          TF_VAR_slack_team_id: ${{ secrets.SLACK_TEAM_ID }}
+          TF_VAR_slack_channel_id: ${{ secrets.SLACK_CHANNEL_ID }}
+          TF_VAR_eks_admin_principal_arns: ${{ secrets.EKS_ADMIN_PRINCIPAL_ARNS }}
+          TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -replace='module.cognito.aws_cognito_user_pool_domain.main' \
+            -target='module.cognito.aws_cognito_user_pool_domain.main'
       # 보안 설정 실수(퍼블릭 S3, 암호화 누락 등)를 apply 전에 자동으로 잡아냄. soft_fail로
       # 시작 - 기존 리소스 대상 findings를 한 번에 다 못 고치니 지금은 경고만 띄우고 CI를
       # 막지 않음. 베이스라인 확인 후 hard-fail(soft_fail 제거)로 전환 검토.
