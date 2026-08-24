@@ -164,6 +164,19 @@ resource "aws_iam_policy" "core" {
         }
       },
       {
+        # EKS Fargate Profile을 처음 생성할 때 AWS가 만드는 전용 서비스 연결 역할.
+        # EKS 클러스터 역할과 달리 서비스 이름이 eks-fargate-pods.amazonaws.com이다.
+        Sid      = "IamServiceLinkedRoleForEksFargate"
+        Effect   = "Allow"
+        Action   = ["iam:CreateServiceLinkedRole"]
+        Resource = ["arn:aws:iam::${local.account_id}:role/aws-service-role/eks-fargate-pods.amazonaws.com/AWSServiceRoleForAmazonEKSForFargate"]
+        Condition = {
+          StringEquals = {
+            "iam:AWSServiceName" = "eks-fargate-pods.amazonaws.com"
+          }
+        }
+      },
+      {
         # aws_ecr_replication_configuration이 최초 활성화 시 AWS가 자동 생성하는 서비스연결역할
         Sid      = "IamServiceLinkedRoleForEcrReplication"
         Effect   = "Allow"
