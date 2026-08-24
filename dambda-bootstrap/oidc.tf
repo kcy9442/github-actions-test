@@ -105,7 +105,10 @@ resource "aws_iam_policy" "core" {
           "iam:ListRoleTags"
         ]
         Resource = [
-          "arn:aws:iam::${local.account_id}:role/${local.app_name_prefix}-*"
+          "arn:aws:iam::${local.account_id}:role/${local.app_name_prefix}-*",
+          # 초기 배포에서 region_name=dev로 생성된 EKS 역할을 현재 상태가
+          # 정리/교체할 수 있도록 EKS 역할로만 호환 범위를 한정한다.
+          "arn:aws:iam::${local.account_id}:role/dev-eks-*"
         ]
       },
       {
@@ -844,7 +847,7 @@ resource "aws_iam_policy" "eks" {
         Sid    = "EksSecretsKms"
         Effect = "Allow"
         Action = [
-          "kms:CreateKey", "kms:DescribeKey", "kms:TagResource", "kms:UntagResource",
+          "kms:CreateKey", "kms:DescribeKey", "kms:UpdateKeyDescription", "kms:TagResource", "kms:UntagResource",
           "kms:ListResourceTags", "kms:ScheduleKeyDeletion", "kms:CancelKeyDeletion",
           "kms:EnableKeyRotation", "kms:DisableKeyRotation", "kms:GetKeyRotationStatus",
           "kms:CreateAlias", "kms:DeleteAlias", "kms:UpdateAlias", "kms:ListAliases",
