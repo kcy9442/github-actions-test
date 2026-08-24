@@ -57,3 +57,8 @@ import {
   to = aws_s3_bucket.cloudtrail
   id = "my-app-dev-cloudtrail-469072180472"
 }
+
+import {
+  to = aws_cloudtrail.main
+  id = "my-app-dev-trail"
+}
