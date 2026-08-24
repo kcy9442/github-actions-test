@@ -86,7 +86,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (mounted) setState(() => _aiAnswer = answer);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _asking = false);
@@ -128,7 +130,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (file == null) return;
     final bytes = await file.readAsBytes();
     setState(() {
@@ -200,7 +205,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.delete, style: const TextStyle(color: AppColors.primary)),
+            child: Text(
+              l10n.delete,
+              style: const TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -215,7 +223,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       await _loadReviews();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -225,7 +235,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (token == null) return;
     if (_rating == 0 || _textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.reviewValidationError)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.reviewValidationError),
+        ),
       );
       return;
     }
@@ -258,7 +270,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       await _loadReviews();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -270,7 +284,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final l10n = AppLocalizations.of(context)!;
     final lang = Localizations.localeOf(context).languageCode;
     final myUserId = authState.profile?.userId;
-    final hasReviewed = _result?.reviews.any((r) => r.userId == myUserId) ?? false;
+    final hasReviewed =
+        _result?.reviews.any((r) => r.userId == myUserId) ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -290,14 +305,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       body: ListenableBuilder(
         listenable: appState,
         builder: (context, _) {
-          final matches = appState.products.where((p) => p.id == widget.productId);
+          final matches = appState.products.where(
+            (p) => p.id == widget.productId,
+          );
           final product = matches.isEmpty ? null : matches.first;
           if (product == null) {
             if (appState.productsLoading) {
               return const Center(child: CircularProgressIndicator());
             }
             return Center(
-              child: Text(l10n.productNotFound, style: const TextStyle(color: AppColors.textSecondary)),
+              child: Text(
+                l10n.productNotFound,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
             );
           }
           final liked = appState.isLiked(product.id);
@@ -312,27 +332,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: AspectRatio(
                     aspectRatio: 1,
                     child: product.imageUrl == null
-                        ? Container(
-                            color: AppColors.surface,
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.shopping_bag_outlined,
-                              size: 64,
-                              color: AppColors.textSecondary,
-                            ),
+                        ? Image.asset(
+                            'assets/images/product-fallback.png',
+                            fit: BoxFit.cover,
                           )
                         : Image.network(
                             product.imageUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: AppColors.surface,
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.shopping_bag_outlined,
-                                size: 64,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                Image.asset(
+                                  'assets/images/product-fallback.png',
+                                  fit: BoxFit.cover,
+                                ),
                           ),
                   ),
                 ),
@@ -348,13 +359,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         children: [
                           Text(
                             product.nameFor(lang),
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           if (product.reasonFor(lang) != null) ...[
                             const SizedBox(height: 4),
                             Text(
                               product.reasonFor(lang)!,
-                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                           const SizedBox(height: 8),
@@ -362,7 +379,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             children: [
                               Text(
                                 product.priceLabel,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -375,9 +395,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               if (product.discountInfoFor(lang) != null) ...[
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.08,
+                                    ),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -390,9 +415,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ),
                                 ),
                               ],
-                              if (_result != null && _result!.reviewCount > 0) ...[
+                              if (_result != null &&
+                                  _result!.reviewCount > 0) ...[
                                 const SizedBox(width: 8),
-                                Icon(Icons.star, size: 14, color: Colors.amber[700]),
+                                Icon(
+                                  Icons.star,
+                                  size: 14,
+                                  color: Colors.amber[700],
+                                ),
                                 const SizedBox(width: 2),
                                 Text(
                                   '${_result!.averageRating.toStringAsFixed(1)} (${_result!.reviewCount})',
@@ -408,7 +438,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
                     IconButton(
-                      onPressed: () => appState.toggleLike(product.id, authState.accessToken),
+                      onPressed: () => appState.toggleLike(
+                        product.id,
+                        authState.accessToken,
+                      ),
                       icon: Icon(
                         liked ? Icons.favorite : Icons.favorite_border,
                         color: AppColors.primary,
@@ -428,7 +461,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
                   l10n.reviewCountLabel(_result?.reviewCount ?? 0),
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -447,14 +483,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 if ((_result?.reviews ?? []).isEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Text(
                       l10n.reviewsEmpty,
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
               ],
-              if ((!hasReviewed || _editing) && authState.accessToken != null) ...[
+              if ((!hasReviewed || _editing) &&
+                  authState.accessToken != null) ...[
                 const Divider(height: 32),
                 _ReviewForm(
                   rating: _rating,
@@ -504,11 +547,18 @@ class _AskAiSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
+              const Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 6),
               Text(
                 l10n.askAiTitle,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -523,7 +573,10 @@ class _AskAiSection extends StatelessWidget {
                     hintText: l10n.askAiHint,
                     filled: true,
                     fillColor: AppColors.surface,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -544,7 +597,10 @@ class _AskAiSection extends StatelessWidget {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : Text(l10n.askAiButton),
                 ),
@@ -560,7 +616,10 @@ class _AskAiSection extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(answer!, style: const TextStyle(fontSize: 14, height: 1.4)),
+              child: Text(
+                answer!,
+                style: const TextStyle(fontSize: 14, height: 1.4),
+              ),
             ),
           ],
         ],
@@ -603,21 +662,30 @@ class _ReviewTile extends StatelessWidget {
                   children: [
                     Text(
                       review.authorNickname,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     _StarRow(rating: review.rating, size: 12),
                     if (review.isPending) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           AppLocalizations.of(context)!.reviewPending,
-                          style: const TextStyle(fontSize: 10, color: AppColors.primary),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ],
@@ -626,14 +694,22 @@ class _ReviewTile extends StatelessWidget {
                     if (review.isBlocked) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.textSecondary.withValues(alpha: 0.15),
+                          color: AppColors.textSecondary.withValues(
+                            alpha: 0.15,
+                          ),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           AppLocalizations.of(context)!.reviewBlocked,
-                          style: const TextStyle(fontSize: 10, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -749,13 +825,19 @@ class _ReviewForm extends StatelessWidget {
             children: [
               Text(
                 isEditing ? l10n.reviewFormTitleEdit : l10n.reviewFormTitleNew,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               if (isEditing && onCancel != null) ...[
                 const Spacer(),
                 TextButton(
                   onPressed: onCancel,
-                  child: Text(l10n.cancel, style: const TextStyle(color: AppColors.textSecondary)),
+                  child: Text(
+                    l10n.cancel,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
               ],
             ],
@@ -798,7 +880,12 @@ class _ReviewForm extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: photoBytes != null
-                      ? Image.memory(photoBytes!, width: 80, height: 80, fit: BoxFit.cover)
+                      ? Image.memory(
+                          photoBytes!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        )
                       : Image.network(
                           existingPhotoUrl!,
                           width: 80,
@@ -810,7 +897,10 @@ class _ReviewForm extends StatelessWidget {
                   right: -8,
                   top: -8,
                   child: IconButton(
-                    icon: const Icon(Icons.cancel, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.cancel,
+                      color: AppColors.textSecondary,
+                    ),
                     onPressed: onRemovePhoto,
                   ),
                 ),
@@ -836,7 +926,10 @@ class _ReviewForm extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(isEditing ? l10n.updateReview : l10n.submitReview),
             ),
