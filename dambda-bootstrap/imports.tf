@@ -60,5 +60,5 @@ import {
 
 import {
   to = aws_cloudtrail.main
-  id = "my-app-dev-trail"
+  id = "arn:aws:cloudtrail:ap-northeast-2:469072180472:trail/my-app-dev-trail"
 }
