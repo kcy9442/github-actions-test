@@ -35,3 +35,25 @@ import {
   to = aws_iam_policy.compute
   id = "arn:aws:iam::469072180472:policy/github-actions-policy-compute"
 }
+
+import {
+  to = aws_iam_policy.eks
+  id = "arn:aws:iam::469072180472:policy/github-actions-policy-eks"
+}
+
+import {
+  to = aws_iam_policy.observability
+  id = "arn:aws:iam::469072180472:policy/github-actions-policy-observability"
+}
+
+# These resources were successfully created by a previous partial bootstrap
+# apply, so adopt them into this state rather than attempting a second create.
+import {
+  to = aws_budgets_budget.dambda
+  id = "469072180472:dambda-monthly"
+}
+
+import {
+  to = aws_s3_bucket.cloudtrail
+  id = "my-app-dev-cloudtrail-469072180472"
+}
