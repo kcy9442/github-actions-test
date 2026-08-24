@@ -345,13 +345,13 @@ resource "aws_iam_policy" "data" {
           "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation", "cloudfront:ListInvalidations"
         ]
         Resource = "*"
-      }
+      },
       {
         # 기존 상품 원본은 현재 계정의 dambda-images 버킷에 보관되어 있다.
         # seed-products가 이를 서비스 전용 버킷으로 복사할 때 읽기만 허용한다.
-        Sid      = "ReadCatalogImageSource"
-        Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:ListBucket"]
+        Sid    = "ReadCatalogImageSource"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:ListBucket"]
         Resource = [
           "arn:aws:s3:::dambda-images",
           "arn:aws:s3:::dambda-images/*"
@@ -908,6 +908,14 @@ resource "aws_iam_policy" "eks" {
           "arn:aws:logs:*:${local.account_id}:log-group:/aws/eks/${local.app_name_prefix}-*/cluster",
           "arn:aws:logs:*:${local.account_id}:log-group:/aws/eks/${local.app_name_prefix}-*/cluster:*"
         ]
+      },
+      {
+        # GetEventSourceMapping은 IAM에서 리소스 수준 권한을 지원하지 않아 Resource="*"가
+        # 필요하다. 없으면 Terraform destroy가 삭제 완료 여부를 확인하지 못하고 멈춘다.
+        Sid      = "LambdaEventSourceMappingRead"
+        Effect   = "Allow"
+        Action   = ["lambda:GetEventSourceMapping"]
+        Resource = "*"
       }
     ]
   })

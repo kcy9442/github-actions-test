@@ -8,7 +8,8 @@ data "aws_route53_zone" "primary" {
 
 # 정적 웹 호스팅용 S3 버킷 (버킷 이름 전역 유일성 확보를 위해 계정 ID 접미사 사용)
 resource "aws_s3_bucket" "static_site" {
-  bucket = "${var.region_name}-static-site-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${var.region_name}-static-site-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = { Name = "${var.region_name}-static-site" }
 }
@@ -181,7 +182,8 @@ resource "aws_s3_bucket_policy" "static_site" {
 
 # 사용자 업로드(이미지 등) 저장용 - 정적 사이트 버킷과 분리된 프라이빗 버킷.
 resource "aws_s3_bucket" "uploads" {
-  bucket = "${var.region_name}-uploads-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${var.region_name}-uploads-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = { Name = "${var.region_name}-uploads" }
 }
@@ -199,8 +201,9 @@ resource "aws_s3_bucket_public_access_block" "uploads" {
 # 접근 정책이 정반대라 재사용 불가. 업로드(PutObject)는 ECS 태스크 IAM으로만 허용
 # (버킷 정책이 아니라 IAM 정책 쪽, modules/compute 참고), 저장 전에 이미 검열 Lambda를 거침
 resource "aws_s3_bucket" "review_photos" {
-  count  = var.enable_review_photos_bucket ? 1 : 0
-  bucket = "${var.region_name}-review-photos-${data.aws_caller_identity.current.account_id}"
+  count         = var.enable_review_photos_bucket ? 1 : 0
+  bucket        = "${var.region_name}-review-photos-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = { Name = "${var.region_name}-review-photos" }
 }
@@ -255,8 +258,9 @@ resource "aws_s3_bucket_cors_configuration" "review_photos" {
 # review_photos와 같은 변수로 게이트: 이미지 URL이 절대경로라 서울 버킷 하나로 어느 리전
 # 백엔드가 서빙하든 상관없어서 us-east-1엔 별도로 안 만듦(enable_review_photos_bucket=false)
 resource "aws_s3_bucket" "product_images" {
-  count  = var.enable_review_photos_bucket ? 1 : 0
-  bucket = "${var.region_name}-product-images-${data.aws_caller_identity.current.account_id}"
+  count         = var.enable_review_photos_bucket ? 1 : 0
+  bucket        = "${var.region_name}-product-images-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = { Name = "${var.region_name}-product-images" }
 }
@@ -306,7 +310,8 @@ resource "aws_s3_bucket_cors_configuration" "product_images" {
 # 모든 리뷰 사진이 처음 올라가는 곳(비공개, 항상 잠김) - review_pipeline의 worker Lambda가
 # 검열을 통과시키면 review_photos로 옮기고 여기서는 지움
 resource "aws_s3_bucket" "quarantine" {
-  bucket = "${var.region_name}-quarantine-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${var.region_name}-quarantine-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = { Name = "${var.region_name}-quarantine" }
 }
