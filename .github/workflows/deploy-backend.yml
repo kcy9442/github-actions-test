@@ -113,5 +113,10 @@ jobs:
         run: |
           aws eks update-kubeconfig --region "$AWS_REGION" --name my-app-dev-eks-cluster
           kubectl apply -k k8s/backend
+          set +e
           kubectl -n app rollout status deployment/backend --timeout=5m
+          ROLLOUT_STATUS=$?
           kubectl -n app get pods -o wide
+          kubectl -n app describe pods -l app=backend
+          kubectl -n app get events --sort-by=.lastTimestamp
+          exit "$ROLLOUT_STATUS"
