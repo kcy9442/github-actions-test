@@ -6,9 +6,6 @@ on:
       confirm:
         description: '잠금 레코드만 삭제하려면 "unlock"을 정확히 입력하세요'
         required: true
-      lock_id:
-        description: "Terraform lock ID"
-        required: true
 
 permissions:
   id-token: write
@@ -34,13 +31,10 @@ jobs:
           aws-region: ap-northeast-2
           role-skip-session-tagging: true
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.15.7"
-
-      - name: Remove the specified stale Terraform lock
-        working-directory: dambda
+      - name: Delete only the stale Terraform lock record
         run: |
-          terraform init -input=false
-          terraform force-unlock -force "${{ github.event.inputs.lock_id }}"
+          aws dynamodb delete-item \
+            --region ap-northeast-2 \
+            --table-name terraform-lock-table \
+            --key '{"LockID":{"S":"dambda-bootstrap-469072180472-tfstate/path/to/my/key/terraform.tfstate"}}' \
+            --condition-expression 'attribute_exists(LockID)'
