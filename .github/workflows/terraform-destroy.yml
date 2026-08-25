@@ -45,6 +45,44 @@ jobs:
         working-directory: dambda
         run: terraform init -input=false
 
+      # 이전 apply가 AWS 리소스 생성 뒤 state 저장 전에 실패하면, 서브넷-라우팅 테이블
+      # association만 AWS에 남고 Terraform state에는 없는 상태가 될 수 있다. 이 경우
+      # destroy가 서브넷/라우팅 테이블을 제거하지 못하므로, state가 추적하지 않는
+      # 프로젝트 라우팅 테이블 association만 먼저 해제한다. state에 있는 association은
+      # Terraform이 정상 순서로 삭제해야 하므로 건드리지 않는다.
+      - name: Detach orphaned route-table associations before destroy
+        working-directory: dambda
+        run: |
+          set -euo pipefail
+
+          tracked_ids=$(mktemp)
+          while IFS= read -r address; do
+            terraform state show -no-color "$address" \
+              | awk -F ' = ' '/^[[:space:]]*id[[:space:]]*=/ {gsub(/"/, "", $2); print $2}' \
+              >> "$tracked_ids"
+          done < <(terraform state list | grep '^module\.network\(_us\)\?\.aws_route_table_association\.' || true)
+
+          for region in ap-northeast-2 us-east-1; do
+            aws ec2 describe-route-tables --region "$region" \
+              --filters 'Name=tag:project,Values=dambda' \
+              --output json \
+              | jq -r '
+                  .RouteTables[]
+                  | select((.Tags | map(select(.Key == "Name") | .Value) | first // "") | test("-((private)|(public))-rt-"))
+                  | .Associations[]?
+                  | select(.Main != true)
+                  | .RouteTableAssociationId
+                ' \
+              | while IFS= read -r association_id; do
+                  if ! grep -Fxq "$association_id" "$tracked_ids"; then
+                    echo "Detaching orphaned route-table association: $association_id ($region)"
+                    aws ec2 disassociate-route-table \
+                      --region "$region" \
+                      --association-id "$association_id"
+                  fi
+                done
+          done
+
       # ArgoCD Application은 기본 finalizer가 남으면 Terraform provider가 삭제 완료를
       # 끝없이 기다릴 수 있다. 이 작업은 destroy에서만, 현재 앱 네임스페이스로만 수행한다.
       - name: Remove app GitOps finalizers before destroy
@@ -75,7 +113,31 @@ jobs:
             done
           done
 
+      # 클러스터가 먼저 사라진 partial destroy에서는 kubernetes/helm provider가 EKS
+      # data source를 읽는 순간 실패한다. 실제 클러스터가 없으면 그 안의 객체도 이미
+      # 함께 삭제된 상태이므로, Kubernetes/Helm 객체만 state에서 잊고 AWS 인프라 삭제를
+      # 계속한다. EKS 자체와 다른 AWS 리소스 state는 절대 제거하지 않는다.
+      - name: Remove Kubernetes state when EKS cluster is already gone
+        working-directory: dambda
+        run: |
+          set -euo pipefail
+          if aws eks describe-cluster --region ap-northeast-2 --name my-app-dev-eks-cluster >/dev/null 2>&1; then
+            echo "EKS cluster still exists; Kubernetes resources remain Terraform-managed."
+            exit 0
+          fi
+
+          echo "EKS cluster is already gone; removing only unreachable Kubernetes/Helm objects from state."
+          while IFS= read -r address; do
+            case "$address" in
+              module.eks.kubernetes_*|module.eks.helm_release.*)
+                terraform state rm "$address"
+                ;;
+            esac
+          done < <(terraform state list)
+
       - name: Terraform Destroy
+        id: terraform_destroy
+        continue-on-error: true
         working-directory: dambda
         env:
           TF_VAR_region_name: my-app-dev
@@ -87,4 +149,39 @@ jobs:
           TF_VAR_grafana_admin_sso_group_ids: ${{ secrets.GRAFANA_ADMIN_SSO_GROUP_IDS }}
           TF_VAR_route53_cloudfront: ${{ vars.ROUTE53_CLOUDFRONT }}
           TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
-        run: terraform destroy -input=false -auto-approve
+        # 앞 단계에서 실제로 존재하지 않는 Kubernetes 객체를 state에서 정리했으므로,
+        # destroy 중 data source를 다시 읽어 이미 삭제된 EKS 클러스터 때문에 중단되지
+        # 않도록 state refresh를 생략한다.
+        run: terraform destroy -input=false -refresh=false -auto-approve
+
+      # VPC 삭제 실패는 대개 이전 apply/수동 작업에서 state 밖에 남은 ENI, Endpoint,
+      # 서브넷 또는 라우팅 테이블 때문이다. 삭제하지 않고 정확한 의존성만 출력해 다음
+      # 복구 작업의 대상을 확정한다.
+      - name: Diagnose remaining VPC dependencies
+        if: steps.terraform_destroy.outcome == 'failure'
+        working-directory: dambda
+        run: |
+          set -euo pipefail
+          VPC_ID=$(terraform state show -no-color module.network.aws_vpc.main \
+            | awk -F ' = ' '/^[[:space:]]*id[[:space:]]*=/ {gsub(/"/, "", $2); print $2; exit}')
+
+          if [ -z "$VPC_ID" ]; then
+            echo "VPC ID를 Terraform state에서 찾지 못했습니다."
+            exit 1
+          fi
+
+          echo "Remaining dependencies for VPC: $VPC_ID"
+          aws ec2 describe-vpc-endpoints --region ap-northeast-2 --filters "Name=vpc-id,Values=$VPC_ID" --output table
+          aws ec2 describe-network-interfaces --region ap-northeast-2 --filters "Name=vpc-id,Values=$VPC_ID" --output table
+          aws ec2 describe-nat-gateways --region ap-northeast-2 --filter "Name=vpc-id,Values=$VPC_ID" --output table
+          aws ec2 describe-subnets --region ap-northeast-2 --filters "Name=vpc-id,Values=$VPC_ID" --output table
+          aws ec2 describe-route-tables --region ap-northeast-2 --filters "Name=vpc-id,Values=$VPC_ID" --output table
+          aws ec2 describe-internet-gateways --region ap-northeast-2 --filters "Name=attachment.vpc-id,Values=$VPC_ID" --output table
+          aws ec2 describe-security-groups --region ap-northeast-2 --filters "Name=vpc-id,Values=$VPC_ID" --output table
+
+      - name: Fail when Terraform destroy did not finish
+        if: steps.terraform_destroy.outcome == 'failure'
+        run: |
+          echo "Terraform destroy가 완료되지 않았습니다. 바로 위 VPC dependency 출력 결과를 확인하세요."
+          exit 1
+
