@@ -1,0 +1,46 @@
+name: Terraform State Unlock (dambda)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '잠금 레코드만 삭제하려면 "unlock"을 정확히 입력하세요'
+        required: true
+      lock_id:
+        description: "Terraform lock ID"
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  unlock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "unlock" ]; then
+            echo "confirm 입력이 'unlock'과 정확히 일치하지 않아 중단합니다."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+          role-skip-session-tagging: true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+      - name: Remove the specified stale Terraform lock
+        working-directory: dambda
+        run: |
+          terraform init -input=false
+          terraform force-unlock -force "${{ github.event.inputs.lock_id }}"
