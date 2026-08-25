@@ -171,7 +171,7 @@ jobs:
       # "Terraform Plan"이 apply 전에 미리 CRD 스키마를 확인하려고 해서 이게 없으면 "API did
       # not recognize GroupVersionKind (CRD may not be installed)"로 막힘 - main.tf 주석에도
       # 이미 있던 "신규 클러스터는 최초 1회 2단계 apply 필요" 제약을 CI에도 동일하게 적용
-      - name: Terraform Apply - Bootstrap ALB Controller/ArgoCD (idempotent, fresh token)
+      - name: Terraform Apply - Bootstrap ALB Controller (fresh token)
         if: github.event_name == 'push' || inputs.apply
         working-directory: dambda
         env:
@@ -194,8 +194,40 @@ jobs:
         run: |
           terraform apply -input=false -auto-approve \
             -target=module.eks.helm_release.aws_load_balancer_controller \
+            -target=module.eks_us.helm_release.aws_load_balancer_controller
+
+      # Helm이 릴리스를 만들었다고 해서 webhook Pod가 즉시 요청을 받을 수 있는 것은 아니다.
+      # Argo CD의 Service 생성은 ALB Controller admission webhook을 호출하므로, endpoint가
+      # 준비되기 전에 같은 Terraform apply에서 둘을 설치하면 실패한다.
+      - name: Wait for ALB Controller webhook readiness
+        if: github.event_name == 'push' || inputs.apply
+        run: |
+          aws eks update-kubeconfig --region ap-northeast-2 --name my-app-dev-eks-cluster
+          kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=10m
+          kubectl get endpoints aws-load-balancer-webhook-service -n kube-system
+
+      - name: Terraform Apply - Bootstrap ArgoCD (fresh token after webhook readiness)
+        if: github.event_name == 'push' || inputs.apply
+        working-directory: dambda
+        env:
+          TF_VAR_region_name: my-app-dev
+          TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
+          TF_VAR_admin_notification_email: ${{ secrets.ADMIN_NOTIFICATION_EMAIL }}
+          TF_VAR_enable_prometheus: ${{ secrets.ENABLE_PROMETHEUS }}
+          TF_VAR_prometheus_workspace_arn: ${{ secrets.PROMETHEUS_WORKSPACE_ARN }}
+          TF_VAR_enable_grafana: ${{ secrets.ENABLE_GRAFANA }}
+          TF_VAR_grafana_admin_sso_group_ids: ${{ secrets.GRAFANA_ADMIN_SSO_GROUP_IDS }}
+          TF_VAR_route53_cloudfront: ${{ vars.ROUTE53_CLOUDFRONT }}
+          TF_VAR_route53_zone_name: ${{ vars.ROUTE53_ZONE_NAME }}
+          TF_VAR_enable_slack_alerts: ${{ secrets.ENABLE_SLACK_ALERTS }}
+          TF_VAR_slack_team_id: ${{ secrets.SLACK_TEAM_ID }}
+          TF_VAR_slack_channel_id: ${{ secrets.SLACK_CHANNEL_ID }}
+          TF_VAR_eks_admin_principal_arns: ${{ secrets.EKS_ADMIN_PRINCIPAL_ARNS }}
+          TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          terraform apply -input=false -auto-approve \
             -target=module.eks.helm_release.argocd \
-            -target=module.eks_us.helm_release.aws_load_balancer_controller \
             -target=module.eks_us.helm_release.argocd
 
       - name: Terraform Plan
@@ -299,3 +331,4 @@ jobs:
           TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         run: terraform plan -input=false -detailed-exitcode
+
