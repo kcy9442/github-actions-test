@@ -113,23 +113,18 @@ jobs:
             done
           done
 
-      # 클러스터가 먼저 사라진 partial destroy에서는 kubernetes/helm provider가 EKS
-      # data source를 읽는 순간 실패한다. 실제 클러스터가 없으면 그 안의 객체도 이미
-      # 함께 삭제된 상태이므로, Kubernetes/Helm 객체만 state에서 잊고 AWS 인프라 삭제를
-      # 계속한다. EKS 자체와 다른 AWS 리소스 state는 절대 제거하지 않는다.
-      - name: Remove Kubernetes state when EKS cluster is already gone
+      # EKS API 접근이 실패하면 Kubernetes/Helm provider가 destroy 전체를 중단시킨다.
+      # 이 워크플로는 앞 단계에서 앱 finalizer를 해제한 뒤 실행되며, EKS 클러스터 삭제가
+      # 남은 Kubernetes 객체를 함께 제거하므로 Kubernetes/Helm 객체만 state에서 분리한다.
+      # EKS와 다른 AWS 리소스 state는 절대 제거하지 않는다.
+      - name: Remove Kubernetes and Helm state before destroy
         working-directory: dambda
         run: |
           set -euo pipefail
-          if aws eks describe-cluster --region ap-northeast-2 --name my-app-dev-eks-cluster >/dev/null 2>&1; then
-            echo "EKS cluster still exists; Kubernetes resources remain Terraform-managed."
-            exit 0
-          fi
-
-          echo "EKS cluster is already gone; removing only unreachable Kubernetes/Helm objects from state."
+          echo "Removing Kubernetes/Helm resources from Terraform state before EKS deletion."
           while IFS= read -r address; do
             case "$address" in
-              module.eks.kubernetes_*|module.eks.helm_release.*)
+              module.eks.kubernetes_*|module.eks.helm_release.*|module.eks_us.kubernetes_*|module.eks_us.helm_release.*)
                 terraform state rm "$address"
                 ;;
             esac
@@ -184,4 +179,3 @@ jobs:
         run: |
           echo "Terraform destroy가 완료되지 않았습니다. 바로 위 VPC dependency 출력 결과를 확인하세요."
           exit 1
-
